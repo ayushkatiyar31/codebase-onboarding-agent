@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -88,7 +86,7 @@ const TreeNodeItem = ({
         style={{ paddingLeft: `${8 + depth * 14}px` }} 
       >
         {/* Chevron for folders, empty space for files */}
-        <span className="w-3.5 flex-shrink-0">
+        <span className="w-3.5 shrink-0">
           {isFolder && (open
             ? <ChevronDown size={12} />
             : <ChevronRight size={12} />
@@ -98,9 +96,9 @@ const TreeNodeItem = ({
         {/* Icon */}
         {isFolder
           ? open
-            ? <FolderOpen size={14} className="text-blue-400 flex-shrink-0" />
-            : <Folder size={14} className="text-blue-400 flex-shrink-0" />
-          : <FileText size={14} className="text-gray-400 flex-shrink-0" />
+            ? <FolderOpen size={14} className="text-blue-400 shrink-0" />
+            : <Folder size={14} className="text-blue-400 shrink-0" />
+          : <FileText size={14} className="text-gray-400 shrink-0" />
         }
 
         {/* File/folder name */}
@@ -108,7 +106,7 @@ const TreeNodeItem = ({
 
         {/* File size for files */}
         {!isFolder && node.size !== undefined && (
-          <span className="ml-auto text-xs text-gray-600 flex-shrink-0">
+          <span className="ml-auto text-xs text-gray-600 shrink-0">
             {formatBytes(node.size)}
           </span>
         )}
@@ -137,9 +135,8 @@ export default function FileTree({ fileTree }: FileTreeProps) {
   
   const tree = useMemo(() => buildTree(fileTree), [fileTree]);
 
-  const handleFileClick = (node: TreeNode) => {
-    
-    console.log('Clicked file:', node.path);
+  const handleFileClick = () => {
+    return;
   };
 
   return (
