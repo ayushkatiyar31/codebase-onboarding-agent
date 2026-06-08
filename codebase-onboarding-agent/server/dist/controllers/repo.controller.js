@@ -33,12 +33,51 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRepo = exports.ingestRepo = void 0;
+exports.chunkRepo = exports.getFileContent = exports.getRepo = exports.ingestRepo = void 0;
+const Chunk_model_1 = require("../models/Chunk.model");
 const Repo_model_1 = require("../models/Repo.model");
 const githubService = __importStar(require("../services/github.service"));
-// POST /api/repo/ingest
-// Body: { repoUrl: "https://github.com/owner/repo" }
-// What it does: fetches repo metadata + file tree from GitHub, saves to MongoDB
+const chunker_service_1 = require("../services/chunker.service");
+const parseGitHubUrl = (url) => {
+    try {
+        const parsed = new URL(url);
+        if (parsed.hostname !== 'github.com')
+            return null;
+        const parts = parsed.pathname.replace(/\/$/, '').split('/').filter(Boolean);
+        if (parts.length < 2)
+            return null;
+        return { owner: parts[0], name: parts[1] };
+    }
+    catch {
+        return null;
+    }
+};
+// Runs chunking without blocking the HTTP response
+// Errors here are logged but don't affect the user
+const triggerChunkingInBackground = async (repoId, owner, name, fileTree) => {
+    try {
+        const filesToProcess = fileTree.filter(node => node.type === 'blob' && !(0, chunker_service_1.shouldSkipFile)(node.path));
+        await Chunk_model_1.Chunk.deleteMany({ repoId });
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
+            const batch = filesToProcess.slice(i, i + BATCH_SIZE);
+            await Promise.allSettled(batch.map(async (file) => {
+                const content = await githubService.getFileContent(owner, name, file.path);
+                const chunks = (0, chunker_service_1.chunkFile)(content, file.path);
+                if (chunks.length > 0) {
+                    await Chunk_model_1.Chunk.insertMany(chunks.map(chunk => ({ ...chunk, repoId })));
+                }
+            }));
+            if (i + BATCH_SIZE < filesToProcess.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+        console.log(`Background chunking complete for ${owner}/${name}`);
+    }
+    catch (error) {
+        console.error(`Background chunking failed for ${owner}/${name}:`, error);
+    }
+};
 const ingestRepo = async (req, res) => {
     try {
         const { repoUrl } = req.body;
@@ -46,27 +85,19 @@ const ingestRepo = async (req, res) => {
             res.status(400).json({ error: 'repoUrl is required' });
             return;
         }
-        // Parse the GitHub URL to extract owner and repo name
-        // e.g. "https://github.com/expressjs/express" → owner: "expressjs", name: "express"
         const parsed = parseGitHubUrl(repoUrl);
         if (!parsed) {
             res.status(400).json({ error: 'Invalid GitHub URL. Expected format: https://github.com/owner/repo' });
             return;
         }
         const { owner, name } = parsed;
-        // Check if we already have this repo in our database
-        // This avoids hitting the GitHub API again for repos we've already ingested
         const existing = await Repo_model_1.Repo.findOne({ fullName: `${owner}/${name}` });
         if (existing && existing.status === 'ready') {
             res.json({ message: 'Repo already ingested', repo: existing });
             return;
         }
-        // Fetch metadata from GitHub (name, description, stars, etc.)
         const repoInfo = await githubService.getRepoInfo(owner, name);
-        // Fetch the complete file tree
         const fileTree = await githubService.getRepoFileTree(owner, name, repoInfo.default_branch);
-        // Save (or update if re-ingesting) to MongoDB
-        // findOneAndUpdate with upsert:true = "update if exists, insert if not"
         const repo = await Repo_model_1.Repo.findOneAndUpdate({ fullName: `${owner}/${name}` }, {
             owner,
             name,
@@ -78,12 +109,16 @@ const ingestRepo = async (req, res) => {
             fileTree,
             status: 'ready',
         }, {
-            new: true, // return the updated document, not the old one
-            upsert: true, // insert if doesn't exist
-            runValidators: true, // run schema validation on update too
+            new: true,
+            upsert: true,
+            runValidators: true,
         });
+        // After saving to MongoDB, kick off chunking in the background
+        // We do NOT await this - we return the response immediately and chunk asynchronously
+        // This way the user gets a fast response and chunking happens behind the scenes
+        triggerChunkingInBackground(repo._id.toString(), owner, name, repo.fileTree);
         res.status(201).json({
-            message: 'Repo ingested successfully',
+            message: 'Repo ingested - chunking in progress in background',
             repo: {
                 id: repo._id,
                 owner: repo.owner,
@@ -105,8 +140,6 @@ const ingestRepo = async (req, res) => {
     }
 };
 exports.ingestRepo = ingestRepo;
-// GET /api/repo/:owner/:name
-// Returns stored repo data (metadata + file tree) from MongoDB
 const getRepo = async (req, res) => {
     try {
         const { owner, name } = req.params;
@@ -123,21 +156,76 @@ const getRepo = async (req, res) => {
     }
 };
 exports.getRepo = getRepo;
-// Helper: parse a GitHub URL string into { owner, name }
-// Returns null if the URL doesn't match the expected format
-const parseGitHubUrl = (url) => {
+const getFileContent = async (req, res) => {
     try {
-        const parsed = new URL(url);
-        // Must be github.com
-        if (parsed.hostname !== 'github.com')
-            return null;
-        // pathname is like "/expressjs/express" or "/expressjs/express/"
-        const parts = parsed.pathname.replace(/\/$/, '').split('/').filter(Boolean);
-        if (parts.length < 2)
-            return null;
-        return { owner: parts[0], name: parts[1] };
+        const owner = Array.isArray(req.params.owner) ? req.params.owner[0] : req.params.owner;
+        const name = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
+        const filePath = req.query.path;
+        if (!filePath) {
+            res.status(400).json({ error: 'Query param "path" is required' });
+            return;
+        }
+        if ((0, chunker_service_1.shouldSkipFile)(filePath)) {
+            res.status(400).json({ error: 'Binary or generated file cannot display' });
+            return;
+        }
+        const content = await githubService.getFileContent(owner, name, filePath);
+        res.json({ content, filePath });
     }
-    catch {
-        return null; // new URL() throws if the string isn't a valid URL
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ error: message });
     }
 };
+exports.getFileContent = getFileContent;
+const chunkRepo = async (req, res) => {
+    try {
+        const owner = Array.isArray(req.params.owner) ? req.params.owner[0] : req.params.owner;
+        const name = Array.isArray(req.params.name) ? req.params.name[0] : req.params.name;
+        const repo = await Repo_model_1.Repo.findOne({ fullName: `${owner}/${name}` });
+        if (!repo) {
+            res.status(404).json({ error: 'Repo not found. Ingest it first.' });
+            return;
+        }
+        await Chunk_model_1.Chunk.deleteMany({ repoId: repo._id });
+        const filesToProcess = repo.fileTree.filter(node => node.type === 'blob' && !(0, chunker_service_1.shouldSkipFile)(node.path));
+        console.log(`Chunking ${filesToProcess.length} files for ${owner}/${name}...`);
+        let totalChunks = 0;
+        const errors = [];
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
+            const batch = filesToProcess.slice(i, i + BATCH_SIZE);
+            const results = await Promise.allSettled(batch.map(async (file) => {
+                const content = await githubService.getFileContent(owner, name, file.path);
+                const chunks = (0, chunker_service_1.chunkFile)(content, file.path);
+                if (chunks.length > 0) {
+                    await Chunk_model_1.Chunk.insertMany(chunks.map(chunk => ({ ...chunk, repoId: repo._id })));
+                }
+                return chunks.length;
+            }));
+            for (const result of results) {
+                if (result.status === 'fulfilled') {
+                    totalChunks += result.value;
+                }
+                else {
+                    errors.push(result.reason instanceof Error ? result.reason.message : 'Unknown error');
+                }
+            }
+            if (i + BATCH_SIZE < filesToProcess.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+        await Repo_model_1.Repo.findByIdAndUpdate(repo._id, { status: 'ready' });
+        res.json({
+            message: 'Chunking complete',
+            totalChunks,
+            filesProcessed: filesToProcess.length - errors.length,
+            errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
+        });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ error: message });
+    }
+};
+exports.chunkRepo = chunkRepo;

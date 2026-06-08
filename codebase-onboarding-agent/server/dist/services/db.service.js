@@ -11,11 +11,8 @@ const connectDB = async () => {
         throw new Error('MONGODB_URI is not defined in environment variables');
     }
     try {
-        // mongoose.connect() returns a promise — we await it so the server
-        // only starts listening AFTER the database is ready
         await mongoose_1.default.connect(uri);
         console.log('MongoDB connected successfully');
-        // Listen for connection events (useful for debugging)
         mongoose_1.default.connection.on('error', (err) => {
             console.error('MongoDB connection error:', err);
         });
@@ -25,7 +22,7 @@ const connectDB = async () => {
     }
     catch (error) {
         console.error('MongoDB connection failed:', error);
-        throw error; // Re-throw so startServer() catches it and exits
+        throw error;
     }
 };
 exports.connectDB = connectDB;

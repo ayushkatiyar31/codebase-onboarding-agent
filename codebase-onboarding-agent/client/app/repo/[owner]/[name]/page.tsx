@@ -1,5 +1,4 @@
-// app/repo/[owner]/[name]/page.tsx
-// The main explorer page — shown after a repo is ingested
+
 
 'use client';
 

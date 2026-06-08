@@ -35,17 +35,16 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Repo = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-// The actual Mongoose schema — maps 1:1 with the interface above
 const FileNodeSchema = new mongoose_1.Schema({
     path: { type: String, required: true },
     type: { type: String, enum: ['blob', 'tree'], required: true },
     size: { type: Number },
     sha: { type: String, required: true },
-}, { _id: false }); // _id: false — these are sub-documents, they don't need their own Mongo ID
+}, { _id: false });
 const RepoSchema = new mongoose_1.Schema({
     owner: { type: String, required: true },
     name: { type: String, required: true },
-    fullName: { type: String, required: true, unique: true }, // unique: no two docs with same fullName
+    fullName: { type: String, required: true, unique: true },
     description: { type: String, default: '' },
     defaultBranch: { type: String, default: 'main' },
     language: { type: String, default: 'Unknown' },
@@ -53,8 +52,6 @@ const RepoSchema = new mongoose_1.Schema({
     fileTree: { type: [FileNodeSchema], default: [] },
     status: { type: String, enum: ['pending', 'processing', 'ready', 'error'], default: 'pending' },
 }, {
-    timestamps: true, // auto-adds createdAt and updatedAt fields, managed by Mongoose
+    timestamps: true,
 });
-// The third argument 'repos' is the collection name in MongoDB
-// Without it, Mongoose would use 'repoes' (auto-plural) which looks wrong
 exports.Repo = mongoose_1.default.model('Repo', RepoSchema, 'repos');
