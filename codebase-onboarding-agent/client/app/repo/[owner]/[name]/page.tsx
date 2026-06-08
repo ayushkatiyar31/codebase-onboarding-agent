@@ -9,6 +9,8 @@ import FileTree from '@/components/explorer/FileTree';
 import RepoHeader from '@/components/explorer/RepoHeader';
 import { IFileNode } from '@/types';
 
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+
 // Type for the full repo response from our API
 interface RepoData {
   _id: string;
@@ -26,19 +28,28 @@ interface RepoData {
 export default function RepoPage() {
   // useParams() reads the dynamic segments from the URL
   // e.g. /repo/expressjs/express → { owner: 'expressjs', name: 'express' }
-  const params = useParams() as { owner: string; name: string };
+  const params = useParams() as {
+    owner?: string | string[];
+    name?: string | string[];
+  };
+  const owner = decodeURIComponent(Array.isArray(params.owner) ? params.owner[0] : params.owner ?? '');
+  const name = decodeURIComponent(Array.isArray(params.name) ? params.name[0] : params.name ?? '');
 
   const [repo, setRepo] = useState<RepoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!owner || !name) {
+      return;
+    }
+
     // useEffect runs after the component mounts (appears on screen)
     // The [] dependency array means "run this only once, on mount"
     const fetchRepo = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/repo/${params.owner}/${params.name}`
+          `${API_BASE_URL}/api/repo/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
         );
         const data = await res.json() as { repo?: RepoData; error?: string };
 
@@ -54,7 +65,7 @@ export default function RepoPage() {
     };
 
     fetchRepo();
-  }, [params.owner, params.name]);
+  }, [owner, name]);
 
   if (loading) {
     return (

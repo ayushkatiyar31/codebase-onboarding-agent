@@ -2,7 +2,9 @@
 'use client'; 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Github, ArrowRight, Loader2 } from 'lucide-react';
+import { GitBranch, ArrowRight, Loader2 } from 'lucide-react';
+
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 export default function HomePage() {
   const router = useRouter();
@@ -20,7 +22,7 @@ export default function HomePage() {
 
     try {
    
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/repo/ingest`, {
+      const res = await fetch(`${API_BASE_URL}/api/repo/ingest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repoUrl }),
@@ -54,7 +56,7 @@ export default function HomePage() {
         {/* Header */}
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="p-3 bg-gray-800 rounded-2xl">
-            <Github size={32} className="text-white" />
+            <GitBranch size={32} className="text-white" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight">Codebase Agent</h1>
           <p className="text-gray-400 text-lg">

@@ -18,7 +18,7 @@ export default function RepoHeader({ repo }: RepoHeaderProps) {
   return (
     <header className="border-b border-gray-800 px-6 py-4 flex items-center gap-6 flex-wrap">
       {/* Repo name as a link to GitHub */}
-      
+      <a
         href={`https://github.com/${repo.fullName}`}
         target="_blank"
         rel="noopener noreferrer"
