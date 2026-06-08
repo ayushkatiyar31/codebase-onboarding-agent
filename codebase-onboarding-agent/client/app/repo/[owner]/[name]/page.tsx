@@ -90,7 +90,7 @@ export default function RepoPage() {
       <RepoHeader repo={repo} />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar: file tree */}
-        <aside className="w-72 border-r border-gray-800 overflow-y-auto flex-shrink-0">
+        <aside className="w-72 border-r border-gray-800 overflow-y-auto shrink-0">
           <FileTree fileTree={repo.fileTree} />
         </aside>
         {/* Main content area — will be filled in Day 2+ */}
