@@ -6,8 +6,9 @@ import { IFileNode } from '@/types';
 
 interface FileTreeProps {
   fileTree: IFileNode[];
+  selectedFile: string | null;
+  onFileSelect: (path: string) => void;
 }
-
 
 interface TreeNode {
   name: string;       
@@ -18,10 +19,8 @@ interface TreeNode {
   children: TreeNode[];
 }
 
-
 const buildTree = (nodes: IFileNode[]): TreeNode[] => {
   const root: TreeNode[] = [];
-
   
   const sorted = [...nodes].sort((a, b) => {
     if (a.type !== b.type) return a.type === 'tree' ? -1 : 1;
@@ -35,16 +34,13 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
     for (let i = 0; i < parts.length; i++) {
       const name = parts[i];
       const isLast = i === parts.length - 1;
-
       
       let existing = current.find(n => n.name === name);
 
       if (!existing) {
-        
         const newNode: TreeNode = {
           name,
           path: parts.slice(0, i + 1).join('/'),
-          
           type: isLast ? node.type : 'tree',
           size: isLast ? node.size : undefined,
           sha: node.sha,
@@ -53,7 +49,6 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
         current.push(newNode);
         existing = newNode;
       }
-
       
       current = existing.children;
     }
@@ -62,30 +57,33 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
   return root;
 };
 
-
 const TreeNodeItem = ({
   node,
   depth,
+  selectedFile,
   onFileClick,
 }: {
   node: TreeNode;
   depth: number;
+  selectedFile: string | null;
   onFileClick: (node: TreeNode) => void;
 }) => {
-  const [open, setOpen] = useState(depth === 0); 
-
+  const [open, setOpen] = useState(depth === 0);
   const isFolder = node.type === 'tree';
+  const isSelected = selectedFile === node.path;
 
   return (
     <div>
       <button
         onClick={() => isFolder ? setOpen(o => !o) : onFileClick(node)}
-        className="w-full flex items-center gap-1.5 px-2 py-1 text-sm
-                   text-gray-300 hover:bg-gray-800 hover:text-white
-                   rounded transition-colors duration-100 text-left"
-        style={{ paddingLeft: `${8 + depth * 14}px` }} 
+        className={`w-full flex items-center gap-1.5 px-2 py-1 text-sm
+                   rounded transition-colors duration-100 text-left
+                   ${isSelected
+                     ? 'bg-blue-600/20 text-blue-300'
+                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                   }`}
+        style={{ paddingLeft: `${8 + depth * 14}px` }}
       >
-        {/* Chevron for folders, empty space for files */}
         <span className="w-3.5 shrink-0">
           {isFolder && (open
             ? <ChevronDown size={12} />
@@ -93,18 +91,15 @@ const TreeNodeItem = ({
           )}
         </span>
 
-        {/* Icon */}
         {isFolder
           ? open
             ? <FolderOpen size={14} className="text-blue-400 shrink-0" />
             : <Folder size={14} className="text-blue-400 shrink-0" />
-          : <FileText size={14} className="text-gray-400 shrink-0" />
+          : <FileText size={14} className={`shrink-0 ${isSelected ? 'text-blue-400' : 'text-gray-400'}`} />
         }
 
-        {/* File/folder name */}
         <span className="truncate">{node.name}</span>
 
-        {/* File size for files */}
         {!isFolder && node.size !== undefined && (
           <span className="ml-auto text-xs text-gray-600 shrink-0">
             {formatBytes(node.size)}
@@ -112,12 +107,12 @@ const TreeNodeItem = ({
         )}
       </button>
 
-      {/* Children — only rendered when folder is open */}
       {isFolder && open && node.children.map(child => (
         <TreeNodeItem
           key={child.path}
           node={child}
           depth={depth + 1}
+          selectedFile={selectedFile}
           onFileClick={onFileClick}
         />
       ))}
@@ -131,13 +126,8 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 };
 
-export default function FileTree({ fileTree }: FileTreeProps) {
-  
+export default function FileTree({ fileTree, selectedFile, onFileSelect }: FileTreeProps) {
   const tree = useMemo(() => buildTree(fileTree), [fileTree]);
-
-  const handleFileClick = () => {
-    return;
-  };
 
   return (
     <div className="py-2">
@@ -149,7 +139,8 @@ export default function FileTree({ fileTree }: FileTreeProps) {
           key={node.path}
           node={node}
           depth={0}
-          onFileClick={handleFileClick}
+          selectedFile={selectedFile}
+          onFileClick={(node) => onFileSelect(node.path)}
         />
       ))}
     </div>
