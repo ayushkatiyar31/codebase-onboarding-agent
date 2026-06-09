@@ -1,91 +1,119 @@
-export const ARCHITECTURE_SYSTEM_PROMPT = `
-You are a senior software architect helping a new developer understand an unfamiliar codebase.
-Your job is to analyse the provided repository structure and files, then produce a clear,
-accurate, and developer-friendly architecture overview.
+import { Message } from '../services/groq.service';
 
-Rules:
-- Only describe what is actually present in the files you are given.
-- Never hallucinate libraries, patterns, or features that are not visible in the code.
-- Write as if you are onboarding a competent developer who is joining the team today.
-- Be specific — name actual files, folders, and functions where relevant.
-- Return only valid JSON matching the schema below. No prose outside the JSON.
-
-Output schema:
-{
-  "summary": "2-3 sentence plain-English description of what this project does",
-  "architecturePattern": "e.g. MVC, Microservices, Monolith, Layered, Event-driven",
-  "techStack": {
-    "language": "primary language",
-    "framework": "main framework",
-    "database": "database if present, else null",
-    "other": ["array", "of", "other", "notable", "libraries"]
-  },
-  "entryPoints": [
-    {
-      "file": "relative file path",
-      "description": "what starts here and why it matters"
-    }
-  ],
-  "keyDirectories": [
-    {
-      "path": "directory path",
-      "role": "what lives here and why it is important"
-    }
-  ],
-  "dataFlow": "1-2 sentences describing how a request travels through the system end to end",
-  "gotchas": [
-    "specific things a new developer should know before touching this code"
-  ],
-  "suggestedReadingOrder": [
-    {
-      "step": 1,
-      "file": "relative file path",
-      "reason": "why to read this first"
-    }
-  ]
-}
-`.trim();
-
-export const buildArchitecturePrompt = (params: {
-  owner: string;
+interface ArchitecturePromptInput {
   repoName: string;
+  owner: string;
   language: string;
-  fileTree: string[];
   packageJson: string | null;
   readme: string | null;
-  entryFileContents: Array<{ path: string; content: string }>;
-}): string => {
-  const { owner, repoName, language, fileTree, packageJson, readme, entryFileContents } = params;
+  entryPoints?: string[];
+  topLevelStructure?: string;
+  fileCount?: number;
+  sampleFilePaths?: string[];
+  fileTree?: string[];
+  entryFileContents?: Array<{ path: string; content: string }>;
+}
 
-  const treePreview = fileTree.slice(0, 300).join('\n');
-  const treeNote = fileTree.length > 300
-    ? `\n[... ${fileTree.length - 300} more files not shown]`
-    : '';
+export const ARCHITECTURE_SYSTEM_PROMPT = `You are an expert software architect who specialises in onboarding new developers to unfamiliar codebases.
 
-  const truncate = (text: string, maxChars: number): string =>
-    text.length > maxChars ? text.slice(0, maxChars) + '\n[truncated]' : text;
+Your job is to analyse a GitHub repository and produce a clear, structured, and accurate architectural overview.
 
-  let prompt = `Analyse the following GitHub repository and return an architecture overview as JSON.\n\n`;
-  prompt += `Repository: ${owner}/${repoName}\n`;
-  prompt += `Primary language: ${language}\n\n`;
+You must respond with ONLY valid JSON — no preamble, no markdown fences, no explanation outside the JSON.
 
-  if (packageJson) {
-    prompt += `### package.json / dependency manifest\n\`\`\`json\n${truncate(packageJson, 3000)}\n\`\`\`\n\n`;
+The JSON must follow this exact structure:
+{
+  "summary": "2-3 sentence plain-English description of what this project does and who it's for",
+
+  "techStack": [
+    { "name": "Technology name", "role": "what it does in this project", "category": "frontend|backend|database|devtools|testing|other" }
+  ],
+
+  "architecturePattern": {
+    "name": "The pattern name e.g. MVC, Microservices, Monolith, JAMstack, etc.",
+    "description": "1-2 sentences explaining how this pattern is applied in this specific repo"
+  },
+
+  "entryPoints": [
+    { "path": "relative file path", "description": "what happens when this file runs" }
+  ],
+
+  "keyDirectories": [
+    { "path": "directory path", "purpose": "what lives here and why it matters" }
+  ],
+
+  "dataFlow": "A plain-English description of how a typical request or action flows through the system from trigger to response",
+
+  "gotchas": [
+    "A specific, actionable thing a new developer is likely to miss or misunderstand about this codebase"
+  ],
+
+  "setupSteps": [
+    "Step-by-step instruction to get this project running locally"
+  ],
+
+  "firstFilesToRead": [
+    { "path": "file path", "reason": "why a new dev should read this file first" }
+  ]
+}
+
+Rules:
+- Base your analysis ONLY on the provided context. Do not invent details.
+- If you cannot determine something, omit that field rather than guessing.
+- gotchas should be specific to THIS codebase, not generic advice.
+- techStack entries should only include technologies you can confirm from the provided files.
+- Keep descriptions concise — a new developer needs clarity, not essays.`;
+
+export const buildArchitecturePrompt = (input: ArchitecturePromptInput): string => {
+  return buildUserMessage(input);
+};
+
+const buildUserMessage = (input: ArchitecturePromptInput): string => {
+  const sections: string[] = [
+    `# Repository: ${input.owner}/${input.repoName}`,
+    `Primary Language: ${input.language}`,
+    `Total Files: ${input.fileCount ?? 'Unknown'}`,
+    '',
+  ];
+
+  if (input.packageJson) {
+    sections.push('## package.json');
+    sections.push(input.packageJson.slice(0, 3000));
+    sections.push('');
   }
 
-  if (readme) {
-    prompt += `### README\n${truncate(readme, 3000)}\n\n`;
+  if (input.readme) {
+    sections.push('## README (first 2000 chars)');
+    sections.push(input.readme.slice(0, 2000));
+    sections.push('');
   }
 
-  prompt += `### File tree (${fileTree.length} files)\n\`\`\`\n${treePreview}${treeNote}\n\`\`\`\n\n`;
+  if (input.topLevelStructure) {
+    sections.push('## Top-level directory structure');
+    sections.push(input.topLevelStructure);
+    sections.push('');
+  } else if (input.fileTree) {
+    sections.push('## File tree');
+    sections.push(input.fileTree.slice(0, 100).join('\n'));
+    sections.push('');
+  }
 
-  if (entryFileContents.length > 0) {
-    prompt += `### Key file contents\n\n`;
-    for (const file of entryFileContents) {
-      prompt += `#### ${file.path}\n\`\`\`\n${truncate(file.content, 2000)}\n\`\`\`\n\n`;
+  if (input.entryPoints && input.entryPoints.length > 0) {
+    sections.push('## Likely entry points');
+    sections.push(input.entryPoints.join('\n'));
+    sections.push('');
+  } else if (input.entryFileContents && input.entryFileContents.length > 0) {
+    sections.push('## Entry files');
+    for (const file of input.entryFileContents) {
+      sections.push(`### ${file.path}`);
+      sections.push(file.content.slice(0, 500));
+      sections.push('');
     }
   }
 
-  prompt += `Return the JSON architecture overview now.`;
-  return prompt;
+  if (input.sampleFilePaths && input.sampleFilePaths.length > 0) {
+    sections.push('## Sample file paths (representative selection)');
+    sections.push(input.sampleFilePaths.join('\n'));
+  }
+
+  return sections.join('\n');
 };

@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './services/db.service';
 import repoRoutes from './routes/repo.routes';
-import architectureRoutes from './routes/architecture.routes';
+import analysisRoutes from './routes/analysis.routes';
 
 dotenv.config();
 
@@ -18,7 +18,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use('/api/repo', repoRoutes);
-app.use('/api/architecture', architectureRoutes);
+app.use('/api/analysis', analysisRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
