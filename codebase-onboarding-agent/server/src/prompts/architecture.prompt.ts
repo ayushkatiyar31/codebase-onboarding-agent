@@ -75,6 +75,7 @@ const buildUserMessage = (input: ArchitecturePromptInput): string => {
     '',
   ];
 
+  
   if (input.packageJson) {
     sections.push('## package.json');
     sections.push(input.packageJson.slice(0, 3000));
