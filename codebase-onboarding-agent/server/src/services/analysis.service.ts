@@ -15,6 +15,7 @@ export interface ArchitectureAnalysis {
     name: string;
     description: string;
   };
+  
   entryPoints: Array<{ path: string; description: string }>;
   keyDirectories: Array<{ path: string; purpose: string }>;
   dataFlow: string;
