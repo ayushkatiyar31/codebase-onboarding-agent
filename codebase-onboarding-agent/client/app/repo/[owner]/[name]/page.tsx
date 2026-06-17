@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import FileTree from '@/components/explorer/FileTree';
 import RepoHeader from '@/components/explorer/RepoHeader';
 import CodeViewer from '@/components/explorer/CodeViewer';
+import ArchitecturePanel from '@/components/explorer/ArchitecturePanel';
 import { IFileNode } from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -32,6 +33,9 @@ export default function RepoPage() {
   // Track which file is currently selected — this is the "shared state"
   // between FileTree (sets it) and CodeViewer (reads it)
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+  // Track active tab
+  const [activeTab, setActiveTab] = useState<'files' | 'architecture'>('architecture');
 
   useEffect(() => {
     const fetchRepo = async () => {
@@ -77,23 +81,53 @@ export default function RepoPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Sidebar */}
-        <aside className="w-72 border-r border-gray-800 overflow-y-auto shrink-0">
+        <aside className="w-72 border-r border-gray-800 overflow-y-auto flex-shrink-0">
           <FileTree
             fileTree={repo.fileTree}
             selectedFile={selectedFile}
-            onFileSelect={setSelectedFile}  // ← lift state up: FileTree calls this
+            onFileSelect={(path) => {
+              setSelectedFile(path);
+              setActiveTab('files');  // switch to file view when clicking a file
+            }}
           />
         </aside>
 
-        {/* Main panel */}
-        <main className="flex-1 flex overflow-hidden">
-          <CodeViewer
-            owner={repo.owner}
-            repoName={repo.name}
-            filePath={selectedFile}   // ← CodeViewer reads the selected file
-          />
-        </main>
+        {/* Main area with tabs */}
+        <main className="flex-1 flex flex-col overflow-hidden">
 
+          {/* Tab bar */}
+          <div className="flex border-b border-gray-800 flex-shrink-0">
+            {(['architecture', 'files'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-5 py-3 text-sm font-medium capitalize transition-colors
+                            border-b-2 -mb-px
+                            ${activeTab === tab
+                              ? 'border-blue-500 text-white'
+                              : 'border-transparent text-gray-500 hover:text-gray-300'
+                            }`}
+              >
+                {tab === 'architecture' ? '⚡ Architecture' : '📄 Files'}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-hidden">
+            {activeTab === 'architecture' && (
+              <ArchitecturePanel owner={repo.owner} repoName={repo.name} />
+            )}
+            {activeTab === 'files' && (
+              <CodeViewer
+                owner={repo.owner}
+                repoName={repo.name}
+                filePath={selectedFile}
+              />
+            )}
+          </div>
+
+        </main>
       </div>
     </div>
   );
