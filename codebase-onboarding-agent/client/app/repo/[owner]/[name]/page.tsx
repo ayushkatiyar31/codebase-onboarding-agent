@@ -6,6 +6,7 @@ import FileTree from '@/components/explorer/FileTree';
 import RepoHeader from '@/components/explorer/RepoHeader';
 import CodeViewer from '@/components/explorer/CodeViewer';
 import ArchitecturePanel from '@/components/explorer/ArchitecturePanel';
+import ChatPanel from '@/components/chat/ChatPanel';
 import { IFileNode } from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -30,12 +31,11 @@ export default function RepoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Track which file is currently selected — this is the "shared state"
-  // between FileTree (sets it) and CodeViewer (reads it)
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
-  // Track active tab
-  const [activeTab, setActiveTab] = useState<'files' | 'architecture'>('architecture');
+  const [activeTab, setActiveTab] = useState<
+    'architecture' | 'files' | 'chat'
+  >('architecture');
 
   useEffect(() => {
     const fetchRepo = async () => {
@@ -43,15 +43,28 @@ export default function RepoPage() {
         const res = await fetch(
           `${API_BASE_URL}/api/repo/${params.owner}/${params.name}`
         );
-        const data = await res.json() as { repo?: RepoData; error?: string };
-        if (!res.ok) throw new Error(data.error || 'Failed to fetch repo');
+
+        const data = await res.json() as {
+          repo?: RepoData;
+          error?: string;
+        };
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to fetch repo');
+        }
+
         setRepo(data.repo || null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Something went wrong');
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Something went wrong'
+        );
       } finally {
         setLoading(false);
       }
     };
+
     fetchRepo();
   }, [params.owner, params.name]);
 
@@ -69,7 +82,9 @@ export default function RepoPage() {
   if (error || !repo) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-red-400">{error || 'Repository not found'}</p>
+        <p className="text-red-400">
+          {error || 'Repository not found'}
+        </p>
       </div>
     );
   }
@@ -79,45 +94,58 @@ export default function RepoPage() {
       <RepoHeader repo={repo} />
 
       <div className="flex flex-1 overflow-hidden">
-
-        {/* Sidebar */}
         <aside className="w-72 border-r border-gray-800 overflow-y-auto flex-shrink-0">
           <FileTree
             fileTree={repo.fileTree}
             selectedFile={selectedFile}
             onFileSelect={(path) => {
               setSelectedFile(path);
-              setActiveTab('files');  // switch to file view when clicking a file
+              setActiveTab('files');
             }}
           />
         </aside>
 
-        {/* Main area with tabs */}
         <main className="flex-1 flex flex-col overflow-hidden">
-
-          {/* Tab bar */}
           <div className="flex border-b border-gray-800 flex-shrink-0">
-            {(['architecture', 'files'] as const).map(tab => (
+            {(['architecture', 'chat', 'files'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-5 py-3 text-sm font-medium capitalize transition-colors
+                className={`px-5 py-3 text-sm font-medium transition-colors
                             border-b-2 -mb-px
-                            ${activeTab === tab
-                              ? 'border-blue-500 text-white'
-                              : 'border-transparent text-gray-500 hover:text-gray-300'
+                            ${
+                              activeTab === tab
+                                ? 'border-blue-500 text-white'
+                                : 'border-transparent text-gray-500 hover:text-gray-300'
                             }`}
               >
-                {tab === 'architecture' ? '⚡ Architecture' : '📄 Files'}
+                {tab === 'architecture' && '⚡ Architecture'}
+                {tab === 'chat' && '💬 Ask Codebase'}
+                {tab === 'files' && '📄 Files'}
               </button>
             ))}
           </div>
 
-          {/* Tab content */}
           <div className="flex-1 overflow-hidden">
             {activeTab === 'architecture' && (
-              <ArchitecturePanel owner={repo.owner} repoName={repo.name} />
+              <ArchitecturePanel
+                owner={repo.owner}
+                repoName={repo.name}
+              />
             )}
+
+            {activeTab === 'chat' && (
+              <ChatPanel
+                owner={repo.owner}
+                repoName={repo.name}
+                repoId={repo._id}
+                onFileSelect={(path) => {
+                  setSelectedFile(path);
+                  setActiveTab('files');
+                }}
+              />
+            )}
+
             {activeTab === 'files' && (
               <CodeViewer
                 owner={repo.owner}
@@ -126,7 +154,6 @@ export default function RepoPage() {
               />
             )}
           </div>
-
         </main>
       </div>
     </div>
