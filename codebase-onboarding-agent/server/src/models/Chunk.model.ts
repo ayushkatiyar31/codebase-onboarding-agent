@@ -1,4 +1,3 @@
-
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IChunk extends Document {
@@ -11,18 +10,22 @@ export interface IChunk extends Document {
   chunkType: string;
   name: string;
   tokenEstimate: number;
+  embedding?: number[];
+  embeddingGeneratedAt?: Date;
 }
 
 const ChunkSchema = new Schema<IChunk>({
-  repoId:        { type: Schema.Types.ObjectId, ref: 'Repo', required: true, index: true },
-  filePath:      { type: String, required: true },
-  language:      { type: String, required: true },
-  startLine:     { type: Number, required: true },
-  endLine:       { type: Number, required: true },
-  content:       { type: String, required: true },
-  chunkType:     { type: String, required: true },
-  name:          { type: String, required: true },
-  tokenEstimate: { type: Number, required: true },
+  repoId:               { type: Schema.Types.ObjectId, ref: 'Repo', required: true, index: true },
+  filePath:             { type: String, required: true },
+  language:             { type: String, required: true },
+  startLine:            { type: Number, required: true },
+  endLine:              { type: Number, required: true },
+  content:              { type: String, required: true },
+  chunkType:            { type: String, required: true },
+  name:                 { type: String, required: true },
+  tokenEstimate:        { type: Number, required: true },
+  embedding:            { type: [Number], default: undefined },
+  embeddingGeneratedAt: { type: Date },
 }, {
   timestamps: true,
 });
