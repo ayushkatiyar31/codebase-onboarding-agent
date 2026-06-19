@@ -3,6 +3,7 @@ import { Chunk, IChunk } from '../models/Chunk.model';
 import {
   embedBatch,
   embedText,
+  cosineSimilarity,
   prepareChunkForEmbedding,
   prepareQueryForEmbedding,
 } from './embeddings.service';
@@ -14,6 +15,7 @@ export interface EmbeddingProgress {
   completed: number;
   failed: number;
   status: 'running' | 'done' | 'error';
+  error?: string;
 }
 
 export const generateEmbeddingsForRepo = async (
@@ -29,6 +31,7 @@ export const generateEmbeddingsForRepo = async (
   const total = chunks.length;
   let completed = 0;
   let failed = 0;
+  let lastError = '';
 
   if (total === 0) {
     return { total: 0, completed: 0, failed: 0, status: 'done' };
@@ -78,6 +81,7 @@ export const generateEmbeddingsForRepo = async (
       }
 
     } catch (error) {
+      lastError = error instanceof Error ? error.message : 'Unknown embedding error';
       console.error(`Embedding batch ${i / EMBEDDING_BATCH_SIZE + 1} failed:`, error);
       failed += batch.length;
 
@@ -86,6 +90,7 @@ export const generateEmbeddingsForRepo = async (
         completed,
         failed,
         status: 'running',
+        error: lastError,
       });
     }
   }
@@ -95,6 +100,7 @@ export const generateEmbeddingsForRepo = async (
     completed,
     failed,
     status: failed === total ? 'error' : 'done',
+    ...(lastError ? { error: lastError } : {}),
   };
 
   onProgress?.(finalStatus);
@@ -178,20 +184,58 @@ export const searchSimilarChunks = async (
     },
   ];
 
-  const results = await Chunk.aggregate(pipeline);
+  try {
+    const results = await Chunk.aggregate(pipeline);
 
-  return results.map(doc => ({
-    chunk: {
-      _id: doc._id.toString(),
-      filePath: doc.filePath,
-      language: doc.language,
-      startLine: doc.startLine,
-      endLine: doc.endLine,
-      content: doc.content,
-      chunkType: doc.chunkType,
-      name: doc.name,
-      tokenEstimate: doc.tokenEstimate,
-    },
-    score: Math.round(doc.score * 1000) / 1000,
-  }));
+    return results.map(doc => ({
+      chunk: {
+        _id: doc._id.toString(),
+        filePath: doc.filePath,
+        language: doc.language,
+        startLine: doc.startLine,
+        endLine: doc.endLine,
+        content: doc.content,
+        chunkType: doc.chunkType,
+        name: doc.name,
+        tokenEstimate: doc.tokenEstimate,
+      },
+      score: Math.round(doc.score * 1000) / 1000,
+    }));
+  } catch (error) {
+    console.warn('Mongo vector search failed; using in-process cosine fallback:', error);
+  }
+
+  const chunks = await Chunk.find({
+    repoId: new mongoose.Types.ObjectId(repoId),
+    embedding: { $exists: true },
+    ...(filePathFilter ? { filePath: filePathFilter } : {}),
+  })
+    .select('_id filePath language startLine endLine content chunkType name tokenEstimate embedding')
+    .lean();
+
+  return chunks
+    .map(chunk => ({
+      chunk: {
+        _id: chunk._id.toString(),
+        filePath: chunk.filePath,
+        language: chunk.language,
+        startLine: chunk.startLine,
+        endLine: chunk.endLine,
+        content: chunk.content,
+        chunkType: chunk.chunkType,
+        name: chunk.name,
+        tokenEstimate: chunk.tokenEstimate,
+      },
+      score:
+        chunk.embedding && chunk.embedding.length === queryEmbedding.length
+          ? cosineSimilarity(queryEmbedding, chunk.embedding)
+          : 0,
+    }))
+    .filter(result => result.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+    .map(result => ({
+      ...result,
+      score: Math.round(result.score * 1000) / 1000,
+    }));
 };

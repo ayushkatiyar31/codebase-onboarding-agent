@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, FileText, AlertCircle, Sparkles, X } from 'lucide-react';
+import { Send, Loader2, FileText, AlertCircle, Sparkles } from 'lucide-react';
 import { ChatMessage, ChatSource, EmbeddingStatus } from '@/types/chat';
 
 interface ChatPanelProps {
@@ -12,7 +12,7 @@ interface ChatPanelProps {
 }
 
 export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: ChatPanelProps) {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -20,6 +20,7 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Cha
   const [embeddingStatus, setEmbeddingStatus] = useState<EmbeddingStatus | null>(null);
   const [isEmbedding, setIsEmbedding] = useState(false);
   const [embedProgress, setEmbedProgress] = useState(0);
+  const [statusError, setStatusError] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -29,33 +30,20 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Cha
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const res = await fetch(`${apiBase}/api/chat/${owner}/${repoName}/status`);
-        const data = await res.json() as EmbeddingStatus;
-        setEmbeddingStatus(data);
-
-        if (!data.isReady && data.totalChunks > 0 && data.embeddedChunks === 0) {
-          startEmbedding();
-        }
-      } catch (err) {
-        console.error('Failed to check embedding status:', err);
-      }
-    };
-
-    checkStatus();
-  }, [owner, repoName]);
-
   const startEmbedding = useCallback(() => {
+    if (eventSourceRef.current) return;
+
     setIsEmbedding(true);
     setEmbedProgress(0);
+    setStatusError('');
 
     const es = new EventSource(`${apiBase}/api/chat/${owner}/${repoName}/embed/stream`);
+    eventSourceRef.current = es;
 
     es.onmessage = (event: MessageEvent<string>) => {
       if (event.data === '[DONE]') {
         es.close();
+        eventSourceRef.current = null;
         setIsEmbedding(false);
 
         fetch(`${apiBase}/api/chat/${owner}/${repoName}/status`)
@@ -70,7 +58,23 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Cha
           type: string;
           completed?: number;
           total?: number;
+          message?: string;
         };
+
+        if (parsed.type === 'status' && parsed.total) {
+          setEmbeddingStatus(prev => ({
+            totalChunks: parsed.total ?? prev?.totalChunks ?? 0,
+            embeddedChunks: parsed.completed ?? prev?.embeddedChunks ?? 0,
+            pendingChunks: Math.max(
+              (parsed.total ?? 0) - (parsed.completed ?? 0),
+              0
+            ),
+            isReady: false,
+            percentComplete: parsed.total
+              ? Math.round(((parsed.completed ?? 0) / parsed.total) * 100)
+              : 0,
+          }));
+        }
 
         if (parsed.type === 'progress' && parsed.total && parsed.completed !== undefined) {
           setEmbedProgress(Math.round((parsed.completed / parsed.total) * 100));
@@ -79,14 +83,54 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Cha
         if (parsed.type === 'complete') {
           setEmbedProgress(100);
         }
+
+        if (parsed.type === 'error') {
+          setStatusError(parsed.message ?? 'Embedding generation failed');
+          es.close();
+          eventSourceRef.current = null;
+          setIsEmbedding(false);
+        }
       } catch {}
     };
 
     es.onerror = () => {
       es.close();
+      eventSourceRef.current = null;
       setIsEmbedding(false);
+      setStatusError('Embedding stream connection failed');
     };
   }, [apiBase, owner, repoName]);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        setStatusError('');
+        const res = await fetch(`${apiBase}/api/chat/${owner}/${repoName}/status`);
+        const data = await res.json() as EmbeddingStatus & { error?: string };
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to check embedding status');
+        }
+
+        setEmbeddingStatus(data);
+
+        if (!data.isReady) {
+          startEmbedding();
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to check embedding status';
+        setStatusError(message);
+        console.error('Failed to check embedding status:', err);
+      }
+    };
+
+    checkStatus();
+
+    return () => {
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+    };
+  }, [apiBase, owner, repoName, startEmbedding]);
 
   const sendMessage = useCallback(async () => {
     const question = input.trim();
@@ -126,7 +170,15 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Cha
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Stream connection failed');
+        const contentType = response.headers.get('content-type') ?? '';
+
+        if (contentType.includes('application/json')) {
+          const data = await response.json() as { error?: string };
+          throw new Error(data.error || `Request failed with HTTP ${response.status}`);
+        }
+
+        const text = await response.text();
+        throw new Error(text || `Request failed with HTTP ${response.status}`);
       }
 
       const reader = response.body.getReader();
@@ -226,25 +278,41 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Cha
     }
   };
 
-  if (isEmbedding || (embeddingStatus && !embeddingStatus.isReady && embeddingStatus.totalChunks > 0)) {
+  const isPreparing = !embeddingStatus || isEmbedding || !embeddingStatus.isReady;
+
+  if (isPreparing || statusError) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
-        <Sparkles size={32} className="text-blue-400" />
+        {statusError ? (
+          <AlertCircle size={32} className="text-red-400" />
+        ) : (
+          <Sparkles size={32} className="text-blue-400" />
+        )}
         <div>
-          <p className="text-white font-medium mb-1">Preparing codebase for Q&A</p>
+          <p className="text-white font-medium mb-1">
+            {statusError ? 'Codebase Q&A setup failed' : 'Preparing codebase for Q&A'}
+          </p>
           <p className="text-gray-400 text-sm mb-4">
-            Generating semantic embeddings for {embeddingStatus?.totalChunks ?? '...'} code chunks.
-            This runs once and takes 1-2 minutes.
+            {statusError || (
+              <>
+                Generating semantic embeddings for {embeddingStatus?.totalChunks || '...'} code chunks.
+                This runs once and takes 1-2 minutes.
+              </>
+            )}
           </p>
 
-          <div className="w-64 bg-gray-800 rounded-full h-1.5 mx-auto">
-            <div
-              className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${embedProgress}%` }}
-            />
-          </div>
+          {!statusError && (
+            <>
+              <div className="w-64 bg-gray-800 rounded-full h-1.5 mx-auto">
+                <div
+                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                  style={{ width: `${embedProgress}%` }}
+                />
+              </div>
 
-          <p className="text-gray-500 text-xs mt-2">{embedProgress}% complete</p>
+              <p className="text-gray-500 text-xs mt-2">{embedProgress}% complete</p>
+            </>
+          )}
         </div>
       </div>
     );

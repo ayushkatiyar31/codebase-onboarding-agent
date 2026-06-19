@@ -1,4 +1,5 @@
 const HF_API_BASE = 'https://api-inference.huggingface.co/models';
+const DEFAULT_EMBEDDING_DIMENSIONS = 384;
 
 interface HFEmbeddingResponse {
   [index: number]: number[];
@@ -13,24 +14,40 @@ export const embedBatch = async (texts: string[]): Promise<number[][]> => {
   const apiKey = process.env.HUGGINGFACE_API_KEY;
   const model  = process.env.EMBEDDING_MODEL || 'BAAI/bge-small-en-v1.5';
 
-  if (!apiKey) throw new Error('HUGGINGFACE_API_KEY is not set');
+  if (!apiKey) {
+    console.warn('HUGGINGFACE_API_KEY is not set; using local fallback embeddings');
+    return embedBatchLocally(texts);
+  }
 
   const processedTexts = texts.map(t => prepareForEmbedding(t));
 
-  const response = await fetch(`${HF_API_BASE}/${model}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs: processedTexts,
-      options: {
-        wait_for_model: true,
-        use_cache: false,
+  let response: Response;
+
+  try {
+    response = await fetch(`${HF_API_BASE}/${model}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        inputs: processedTexts,
+        options: {
+          wait_for_model: true,
+          use_cache: false,
+        },
+      }),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown network error';
+    const maybeCause = error as { cause?: unknown };
+    const cause = maybeCause.cause instanceof Error
+      ? `: ${maybeCause.cause.message}`
+      : '';
+
+    console.warn(`HF Embedding API request failed; using local fallback embeddings: ${message}${cause}`);
+    return embedBatchLocally(texts);
+  }
 
   if (!response.ok) {
     const error = await response.text();
@@ -41,7 +58,8 @@ export const embedBatch = async (texts: string[]): Promise<number[][]> => {
       return embedBatch(texts);
     }
 
-    throw new Error(`HF Embedding API error ${response.status}: ${error}`);
+    console.warn(`HF Embedding API error ${response.status}; using local fallback embeddings: ${error}`);
+    return embedBatchLocally(texts);
   }
 
   const data = await response.json() as HFEmbeddingResponse | number[][];
@@ -51,6 +69,45 @@ export const embedBatch = async (texts: string[]): Promise<number[][]> => {
   }
 
   return data as number[][];
+};
+
+const embedBatchLocally = (texts: string[]): number[][] => {
+  return texts.map(text => embedTextLocally(text));
+};
+
+const embedTextLocally = (text: string): number[] => {
+  const dimensions = Number(process.env.EMBEDDING_DIMENSIONS) || DEFAULT_EMBEDDING_DIMENSIONS;
+  const vector = Array.from({ length: dimensions }, () => 0);
+  const tokens = text
+    .toLowerCase()
+    .match(/[a-z0-9_./-]+/g) ?? [];
+
+  for (const token of tokens) {
+    const index = positiveHash(token) % dimensions;
+    const sign = positiveHash(`sign:${token}`) % 2 === 0 ? 1 : -1;
+    vector[index] += sign;
+  }
+
+  const magnitude = Math.sqrt(
+    vector.reduce((sum, value) => sum + value * value, 0)
+  );
+
+  if (magnitude === 0) {
+    return vector;
+  }
+
+  return vector.map(value => value / magnitude);
+};
+
+const positiveHash = (value: string): number => {
+  let hash = 2166136261;
+
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
 };
 
 export const prepareChunkForEmbedding = (chunk: {

@@ -40,6 +40,14 @@ export const embedRepo = async (req: Request, res: Response): Promise<void> => {
 
     const progress = await generateEmbeddingsForRepo(repo._id.toString());
 
+    if (progress.status === 'error') {
+      res.status(502).json({
+        error: progress.error || 'Embedding generation failed',
+        ...progress,
+      });
+      return;
+    }
+
     res.json({
       message: 'Embeddings generated',
       ...progress,
@@ -99,7 +107,7 @@ export const embedRepoStream = async (req: Request, res: Response): Promise<void
       completed: alreadyEmbedded,
     });
 
-    await generateEmbeddingsForRepo(
+    const progress = await generateEmbeddingsForRepo(
       repo._id.toString(),
       (progress) => {
         if (progress.status === 'done') {
@@ -115,6 +123,14 @@ export const embedRepoStream = async (req: Request, res: Response): Promise<void
         }
       }
     );
+
+    if (progress.status === 'error') {
+      sendEvent({
+        type: 'error',
+        message: progress.error || 'Embedding generation failed',
+        ...progress,
+      });
+    }
 
     res.write('data: [DONE]\n\n');
     res.end();
@@ -165,16 +181,33 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const embeddedCount = await Chunk.countDocuments({
+    let embeddedCount = await Chunk.countDocuments({
       repoId: repo._id,
       embedding: { $exists: true },
     });
 
-    if (embeddedCount === 0) {
-      res.status(400).json({
-        error: 'No embeddings found. Please run embedding generation first.',
+    if (embeddedCount < totalChunks) {
+      const progress = await generateEmbeddingsForRepo(repo._id.toString());
+
+      if (progress.status === 'error') {
+        res.status(502).json({
+          error: progress.error || 'Embedding generation failed',
+          ...progress,
+        });
+        return;
+      }
+
+      embeddedCount = await Chunk.countDocuments({
+        repoId: repo._id,
+        embedding: { $exists: true },
       });
-      return;
+
+      if (embeddedCount === 0) {
+        res.status(500).json({
+          error: 'Embedding generation failed. Check HUGGINGFACE_API_KEY and embedding provider logs.',
+        });
+        return;
+      }
     }
 
     await streamRAGAnswer(
