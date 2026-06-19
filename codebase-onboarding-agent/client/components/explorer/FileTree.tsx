@@ -18,11 +18,17 @@ interface TreeNode {
   children: TreeNode[];
 }
 
+const isDirectoryNode = (node: IFileNode): boolean => {
+  return node.type === 'tree' || node.type === 'directory';
+};
+
 const buildTree = (nodes: IFileNode[]): TreeNode[] => {
   const root: TreeNode[] = [];
   
   const sorted = [...nodes].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+    if (isDirectoryNode(a) !== isDirectoryNode(b)) {
+      return isDirectoryNode(a) ? -1 : 1;
+    }
     return a.path.localeCompare(b.path);
   });
 
@@ -40,7 +46,7 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
         const newNode: TreeNode = {
           name,
           path: parts.slice(0, i + 1).join('/'),
-          type: isLast ? node.type : 'directory',
+          type: isLast && !isDirectoryNode(node) ? 'file' : 'directory',
           size: isLast ? node.size : undefined,
           children: [],
         };

@@ -32,12 +32,16 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.chunkRepo = exports.getFileContent = exports.getRepo = exports.ingestRepo = void 0;
-const Chunk_model_1 = require("../models/Chunk.model");
+const mongoose_1 = __importDefault(require("mongoose"));
 const Repo_model_1 = require("../models/Repo.model");
 const githubService = __importStar(require("../services/github.service"));
 const chunker_service_1 = require("../services/chunker.service");
+const repoIndexing_service_1 = require("../services/repoIndexing.service");
 const parseGitHubUrl = (url) => {
     try {
         const parsed = new URL(url);
@@ -56,31 +60,19 @@ const parseGitHubUrl = (url) => {
 // Errors here are logged but don't affect the user
 const triggerChunkingInBackground = async (repoId, owner, name, fileTree) => {
     try {
-        const filesToProcess = fileTree.filter(node => node.type === 'blob' && !(0, chunker_service_1.shouldSkipFile)(node.path));
-        await Chunk_model_1.Chunk.deleteMany({ repoId });
-        const BATCH_SIZE = 10;
-        for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
-            const batch = filesToProcess.slice(i, i + BATCH_SIZE);
-            await Promise.allSettled(batch.map(async (file) => {
-                const content = await githubService.getFileContent(owner, name, file.path);
-                const chunks = (0, chunker_service_1.chunkFile)(content, file.path);
-                if (chunks.length > 0) {
-                    await Chunk_model_1.Chunk.insertMany(chunks.map(chunk => ({ ...chunk, repoId })));
-                }
-            }));
-            if (i + BATCH_SIZE < filesToProcess.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
-        }
+        await (0, repoIndexing_service_1.createChunksForRepo)({
+            _id: new mongoose_1.default.Types.ObjectId(repoId),
+            owner,
+            name,
+            fileTree,
+        });
         console.log(`Background chunking complete for ${owner}/${name}`);
-        // Now generate embeddings for all the chunks we just created
-        // Dynamic import avoids circular dependency
         const { generateEmbeddingsForRepo } = await Promise.resolve().then(() => __importStar(require('../services/vectorSearch.service')));
         await generateEmbeddingsForRepo(repoId);
         console.log(`Background embedding complete for ${owner}/${name}`);
     }
     catch (error) {
-        console.error(`Background chunking failed for ${owner}/${name}:`, error);
+        console.error(`Background processing failed for ${owner}/${name}:`, error);
     }
 };
 const ingestRepo = async (req, res) => {
@@ -192,40 +184,13 @@ const chunkRepo = async (req, res) => {
             res.status(404).json({ error: 'Repo not found. Ingest it first.' });
             return;
         }
-        await Chunk_model_1.Chunk.deleteMany({ repoId: repo._id });
-        const filesToProcess = repo.fileTree.filter(node => node.type === 'blob' && !(0, chunker_service_1.shouldSkipFile)(node.path));
-        console.log(`Chunking ${filesToProcess.length} files for ${owner}/${name}...`);
-        let totalChunks = 0;
-        const errors = [];
-        const BATCH_SIZE = 10;
-        for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
-            const batch = filesToProcess.slice(i, i + BATCH_SIZE);
-            const results = await Promise.allSettled(batch.map(async (file) => {
-                const content = await githubService.getFileContent(owner, name, file.path);
-                const chunks = (0, chunker_service_1.chunkFile)(content, file.path);
-                if (chunks.length > 0) {
-                    await Chunk_model_1.Chunk.insertMany(chunks.map(chunk => ({ ...chunk, repoId: repo._id })));
-                }
-                return chunks.length;
-            }));
-            for (const result of results) {
-                if (result.status === 'fulfilled') {
-                    totalChunks += result.value;
-                }
-                else {
-                    errors.push(result.reason instanceof Error ? result.reason.message : 'Unknown error');
-                }
-            }
-            if (i + BATCH_SIZE < filesToProcess.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
-        }
+        const result = await (0, repoIndexing_service_1.createChunksForRepo)(repo);
         await Repo_model_1.Repo.findByIdAndUpdate(repo._id, { status: 'ready' });
         res.json({
             message: 'Chunking complete',
-            totalChunks,
-            filesProcessed: filesToProcess.length - errors.length,
-            errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
+            totalChunks: result.totalChunks,
+            filesProcessed: result.filesProcessed,
+            errors: result.errors.length > 0 ? result.errors.slice(0, 5) : undefined,
         });
     }
     catch (error) {

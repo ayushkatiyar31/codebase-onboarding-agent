@@ -3,7 +3,7 @@ import { Repo } from '../models/Repo.model';
 import { Chunk } from '../models/Chunk.model';
 import { generateEmbeddingsForRepo } from '../services/vectorSearch.service';
 import { streamRAGAnswer } from '../services/chat.service';
-import mongoose from 'mongoose';
+import { ensureChunksForRepo } from '../services/repoIndexing.service';
 
 export const embedRepo = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -15,13 +15,11 @@ export const embedRepo = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const chunkCount = await Chunk.countDocuments({
-      repoId: repo._id,
-    });
+    const chunkCount = await ensureChunksForRepo(repo);
 
     if (chunkCount === 0) {
       res.status(400).json({
-        error: 'No chunks found. Run chunking first via POST /api/repo/:owner/:name/chunk',
+        error: 'No chunks could be created for this repo.',
       });
       return;
     }
@@ -74,7 +72,7 @@ export const embedRepoStream = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const totalChunks = await Chunk.countDocuments({ repoId: repo._id });
+    const totalChunks = await ensureChunksForRepo(repo);
 
     const alreadyEmbedded = await Chunk.countDocuments({
       repoId: repo._id,
@@ -158,6 +156,15 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const totalChunks = await ensureChunksForRepo(repo);
+
+    if (totalChunks === 0) {
+      res.status(400).json({
+        error: 'No chunks could be created for this repo.',
+      });
+      return;
+    }
+
     const embeddedCount = await Chunk.countDocuments({
       repoId: repo._id,
       embedding: { $exists: true },
@@ -165,7 +172,7 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
 
     if (embeddedCount === 0) {
       res.status(400).json({
-        error: 'No embeddings found. Please wait for embedding generation to complete.',
+        error: 'No embeddings found. Please run embedding generation first.',
       });
       return;
     }
@@ -198,9 +205,7 @@ export const getEmbeddingStatus = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const totalChunks = await Chunk.countDocuments({
-      repoId: repo._id,
-    });
+    const totalChunks = await ensureChunksForRepo(repo);
 
     const embeddedChunks = await Chunk.countDocuments({
       repoId: repo._id,

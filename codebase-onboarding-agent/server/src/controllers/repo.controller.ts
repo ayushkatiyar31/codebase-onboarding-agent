@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
-import { Chunk } from '../models/Chunk.model';
+import mongoose from 'mongoose';
 import { IFileNode, Repo } from '../models/Repo.model';
 import * as githubService from '../services/github.service';
-import { chunkFile, shouldSkipFile } from '../services/chunker.service';
+import { shouldSkipFile } from '../services/chunker.service';
+import { createChunksForRepo } from '../services/repoIndexing.service';
 
 const parseGitHubUrl = (url: string): { owner: string; name: string } | null => {
   try {
@@ -29,42 +30,12 @@ const triggerChunkingInBackground = async (
   fileTree: IFileNode[]
 ) => {
   try {
-    const filesToProcess = fileTree.filter(
-      node => node.type === 'blob' && !shouldSkipFile(node.path)
-    );
-
-    await Chunk.deleteMany({ repoId });
-
-    const BATCH_SIZE = 10;
-
-    for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
-      const batch = filesToProcess.slice(i, i + BATCH_SIZE);
-
-      await Promise.allSettled(
-        batch.map(async (file) => {
-          const content = await githubService.getFileContent(
-            owner,
-            name,
-            file.path
-          );
-
-          const chunks = chunkFile(content, file.path);
-
-          if (chunks.length > 0) {
-            await Chunk.insertMany(
-              chunks.map(chunk => ({
-                ...chunk,
-                repoId,
-              }))
-            );
-          }
-        })
-      );
-
-      if (i + BATCH_SIZE < filesToProcess.length) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
+    await createChunksForRepo({
+      _id: new mongoose.Types.ObjectId(repoId),
+      owner,
+      name,
+      fileTree,
+    });
 
     console.log(`Background chunking complete for ${owner}/${name}`);
 
@@ -210,57 +181,15 @@ export const chunkRepo = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    await Chunk.deleteMany({ repoId: repo._id });
-
-    const filesToProcess = repo.fileTree.filter(
-      node => node.type === 'blob' && !shouldSkipFile(node.path)
-    );
-
-    console.log(`Chunking ${filesToProcess.length} files for ${owner}/${name}...`);
-
-    let totalChunks = 0;
-    const errors: string[] = [];
-
-    const BATCH_SIZE = 10;
-
-    for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
-      const batch = filesToProcess.slice(i, i + BATCH_SIZE);
-
-      const results = await Promise.allSettled(
-        batch.map(async (file) => {
-          const content = await githubService.getFileContent(owner, name, file.path);
-          const chunks = chunkFile(content, file.path);
-
-          if (chunks.length > 0) {
-            await Chunk.insertMany(
-              chunks.map(chunk => ({ ...chunk, repoId: repo._id }))
-            );
-          }
-
-          return chunks.length;
-        })
-      );
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          totalChunks += result.value;
-        } else {
-          errors.push(result.reason instanceof Error ? result.reason.message : 'Unknown error');
-        }
-      }
-
-      if (i + BATCH_SIZE < filesToProcess.length) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
+    const result = await createChunksForRepo(repo);
 
     await Repo.findByIdAndUpdate(repo._id, { status: 'ready' });
 
     res.json({
       message: 'Chunking complete',
-      totalChunks,
-      filesProcessed: filesToProcess.length - errors.length,
-      errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
+      totalChunks: result.totalChunks,
+      filesProcessed: result.filesProcessed,
+      errors: result.errors.length > 0 ? result.errors.slice(0, 5) : undefined,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
