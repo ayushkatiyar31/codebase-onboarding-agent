@@ -73,6 +73,11 @@ const triggerChunkingInBackground = async (repoId, owner, name, fileTree) => {
             }
         }
         console.log(`Background chunking complete for ${owner}/${name}`);
+        // Now generate embeddings for all the chunks we just created
+        // Dynamic import avoids circular dependency
+        const { generateEmbeddingsForRepo } = await Promise.resolve().then(() => __importStar(require('../services/vectorSearch.service')));
+        await generateEmbeddingsForRepo(repoId);
+        console.log(`Background embedding complete for ${owner}/${name}`);
     }
     catch (error) {
         console.error(`Background chunking failed for ${owner}/${name}:`, error);

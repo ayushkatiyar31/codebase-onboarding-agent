@@ -13,9 +13,8 @@ interface FileTreeProps {
 interface TreeNode {
   name: string;       
   path: string;      
-  type: 'blob' | 'tree';
+  type: 'file' | 'directory';
   size?: number;
-  sha: string;
   children: TreeNode[];
 }
 
@@ -23,7 +22,7 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
   const root: TreeNode[] = [];
   
   const sorted = [...nodes].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'tree' ? -1 : 1;
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
     return a.path.localeCompare(b.path);
   });
 
@@ -41,9 +40,8 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
         const newNode: TreeNode = {
           name,
           path: parts.slice(0, i + 1).join('/'),
-          type: isLast ? node.type : 'tree',
+          type: isLast ? node.type : 'directory',
           size: isLast ? node.size : undefined,
-          sha: node.sha,
           children: [],
         };
         current.push(newNode);
@@ -69,7 +67,7 @@ const TreeNodeItem = ({
   onFileClick: (node: TreeNode) => void;
 }) => {
   const [open, setOpen] = useState(depth === 0);
-  const isFolder = node.type === 'tree';
+  const isFolder = node.type === 'directory';
   const isSelected = selectedFile === node.path;
 
   return (

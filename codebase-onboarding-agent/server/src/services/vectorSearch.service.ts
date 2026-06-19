@@ -131,7 +131,7 @@ export const searchSimilarChunks = async (
   const queryText = prepareQueryForEmbedding(query);
   const queryEmbedding = await embedText(queryText);
 
-  const vectorSearchStage: Record<string, unknown> = {
+  const vectorSearchStage = {
     $vectorSearch: {
       index: 'chunk_vector_index',
       path: 'embedding',
@@ -143,10 +143,10 @@ export const searchSimilarChunks = async (
         ...(filePathFilter ? { filePath: { $eq: filePathFilter } } : {}),
       },
     },
-  };
+  } as unknown as mongoose.PipelineStage;
 
   const pipeline: mongoose.PipelineStage[] = [
-    vectorSearchStage as mongoose.PipelineStage,
+    vectorSearchStage,
 
     {
       $addFields: {
