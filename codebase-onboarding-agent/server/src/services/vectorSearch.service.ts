@@ -139,7 +139,7 @@ export const searchSimilarChunks = async (
 
   const vectorSearchStage = {
     $vectorSearch: {
-      index: 'chunk_vector_index',
+      index: 'vector_index',
       path: 'embedding',
       queryVector: queryEmbedding,
       numCandidates: topK * 15,
