@@ -36,14 +36,27 @@ const triggerChunkingInBackground = async (
     await Chunk.deleteMany({ repoId });
 
     const BATCH_SIZE = 10;
+
     for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
       const batch = filesToProcess.slice(i, i + BATCH_SIZE);
+
       await Promise.allSettled(
         batch.map(async (file) => {
-          const content = await githubService.getFileContent(owner, name, file.path);
+          const content = await githubService.getFileContent(
+            owner,
+            name,
+            file.path
+          );
+
           const chunks = chunkFile(content, file.path);
+
           if (chunks.length > 0) {
-            await Chunk.insertMany(chunks.map(chunk => ({ ...chunk, repoId })));
+            await Chunk.insertMany(
+              chunks.map(chunk => ({
+                ...chunk,
+                repoId,
+              }))
+            );
           }
         })
       );
@@ -55,13 +68,19 @@ const triggerChunkingInBackground = async (
 
     console.log(`Background chunking complete for ${owner}/${name}`);
 
-    // Now generate embeddings for all the chunks we just created
-    // Dynamic import avoids circular dependency
-    const { generateEmbeddingsForRepo } = await import('../services/vectorSearch.service');
+    const { generateEmbeddingsForRepo } = await import(
+      '../services/vectorSearch.service'
+    );
+
     await generateEmbeddingsForRepo(repoId);
+
     console.log(`Background embedding complete for ${owner}/${name}`);
+
   } catch (error) {
-    console.error(`Background chunking failed for ${owner}/${name}:`, error);
+    console.error(
+  `Background processing failed for ${owner}/${name}:`,
+  error
+);
   }
 };
 

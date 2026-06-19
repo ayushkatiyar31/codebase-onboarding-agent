@@ -1,5 +1,4 @@
-// client/components/explorer/CodeViewer.tsx
-// Renders syntax-highlighted code for a selected file
+
 
 'use client';
 
@@ -26,8 +25,6 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Whenever filePath changes (user clicks a different file),
-  // fetch that file's content
   useEffect(() => {
     if (!filePath) return;
 
@@ -37,7 +34,7 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
       setFileData(null);
 
       try {
-        // encodeURIComponent handles paths with spaces or special chars
+        
         const url = `${process.env.NEXT_PUBLIC_API_URL}/api/repo/${owner}/${repoName}/file?path=${encodeURIComponent(filePath)}`;
         const res = await fetch(url);
         const data = await res.json() as FileData & { error?: string };
@@ -55,16 +52,16 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
     fetchFile();
   }, [filePath, owner, repoName]); // re-run when any of these change
 
-  // Copy to clipboard handler
+  
   const handleCopy = async () => {
     if (!fileData) return;
     await navigator.clipboard.writeText(fileData.content);
     setCopied(true);
-    // Reset "Copied!" back to "Copy" after 2 seconds
+    
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // ── No file selected ──
+  
   if (!filePath) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
@@ -76,7 +73,7 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
     );
   }
 
-  // ── Loading ──
+  
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500">
@@ -88,7 +85,7 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
     );
   }
 
-  // ── Error ──
+  
   if (error) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -100,7 +97,7 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
     );
   }
 
-  // ── File content ──
+  
   if (!fileData) return null;
 
   const lineCount = fileData.content.split('\n').length;
@@ -110,8 +107,8 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
 
       {/* File toolbar */}
       <div className="flex items-center justify-between px-4 py-2
-                      border-b border-gray-800 bg-gray-900 shrink-0">
-        <div className="flex items-center gap-2 text-sm">
+                      border-b border-gray-800 bg-gray-900 ">
+        <div className="flex items-center gap-2 text-sm">flex-shrink-0
           <FileText size={14} className="text-gray-400" />
           {/* Show only last 2 path segments to save space */}
           <span className="text-gray-300 font-mono">
@@ -141,16 +138,16 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
           style={vscDarkPlus}
           showLineNumbers
           lineNumberStyle={{
-            color: '#4b5563',     // gray-600
+            color: '#4b5563',     
             fontSize: '12px',
             paddingRight: '1rem',
-            userSelect: 'none',   // clicking line numbers doesn't select them
+            userSelect: 'none',   
             minWidth: '3em',
           }}
           customStyle={{
             margin: 0,
             padding: '1rem',
-            background: '#111827', // gray-900
+            background: '#111827', 
             fontSize: '13px',
             lineHeight: '1.6',
             height: '100%',
