@@ -1,9 +1,8 @@
 import mongoose from 'mongoose';
-import { Chunk, IChunk } from '../models/Chunk.model';
+import { Chunk } from '../models/Chunk.model';
 import {
   embedBatch,
   embedText,
-  cosineSimilarity,
   prepareChunkForEmbedding,
   prepareQueryForEmbedding,
 } from './embeddings.service';
@@ -129,45 +128,46 @@ export const searchSimilarChunks = async (
     topK?: number;
     minScore?: number;
     filePathFilter?: string;
+    maxPerFile?: number;
   } = {}
 ): Promise<SearchResult[]> => {
 
-  const { topK = 5, minScore = 0.3, filePathFilter } = options;
+  const {
+    topK = 5,
+    minScore = 0.25,
+    filePathFilter,
+    maxPerFile = 2,
+  } = options;
 
   const queryText = prepareQueryForEmbedding(query);
   const queryEmbedding = await embedText(queryText);
 
-  const vectorSearchStage = {
-    $vectorSearch: {
-      index: 'vector_index',
-      path: 'embedding',
-      queryVector: queryEmbedding,
-      numCandidates: topK * 15,
-      limit: topK * 3,
-      filter: {
-        repoId: { $eq: new mongoose.Types.ObjectId(repoId) },
-        ...(filePathFilter ? { filePath: { $eq: filePathFilter } } : {}),
-      },
-    },
-  } as unknown as mongoose.PipelineStage;
+  const overFetchLimit = topK * 4;
 
   const pipeline: mongoose.PipelineStage[] = [
-    vectorSearchStage,
-
+    {
+      $vectorSearch: {
+        index: 'vector_index',
+        path: 'embedding',
+        queryVector: queryEmbedding,
+        numCandidates: overFetchLimit * 10,
+        limit: overFetchLimit,
+        filter: {
+          repoId: { $eq: new mongoose.Types.ObjectId(repoId) },
+          ...(filePathFilter ? { filePath: { $eq: filePathFilter } } : {}),
+        },
+      },
+    } as mongoose.PipelineStage,
     {
       $addFields: {
         score: { $meta: 'vectorSearchScore' },
       },
     },
-
     {
       $match: {
         score: { $gte: minScore },
       },
     },
-
-    { $limit: topK },
-
     {
       $project: {
         _id: 1,
@@ -184,58 +184,110 @@ export const searchSimilarChunks = async (
     },
   ];
 
-  try {
-    const results = await Chunk.aggregate(pipeline);
+  const rawResults = await Chunk.aggregate(pipeline);
 
-    return results.map(doc => ({
-      chunk: {
-        _id: doc._id.toString(),
-        filePath: doc.filePath,
-        language: doc.language,
-        startLine: doc.startLine,
-        endLine: doc.endLine,
-        content: doc.content,
-        chunkType: doc.chunkType,
-        name: doc.name,
-        tokenEstimate: doc.tokenEstimate,
-      },
-      score: Math.round(doc.score * 1000) / 1000,
-    }));
-  } catch (error) {
-    console.warn('Mongo vector search failed; using in-process cosine fallback:', error);
+  const perFileCount = new Map<string, number>();
+  const diversified: typeof rawResults = [];
+
+  for (const doc of rawResults) {
+    const count = perFileCount.get(doc.filePath) ?? 0;
+
+    if (count >= maxPerFile) {
+      continue;
+    }
+
+    diversified.push(doc);
+    perFileCount.set(doc.filePath, count + 1);
+
+    if (diversified.length >= topK) {
+      break;
+    }
   }
 
+  if (diversified.length < topK) {
+    for (const doc of rawResults) {
+      if (diversified.length >= topK) {
+        break;
+      }
+
+      if (diversified.includes(doc)) {
+        continue;
+      }
+
+      diversified.push(doc);
+    }
+  }
+
+  return diversified.map(doc => ({
+    chunk: {
+      _id: doc._id.toString(),
+      filePath: doc.filePath,
+      language: doc.language,
+      startLine: doc.startLine,
+      endLine: doc.endLine,
+      content: doc.content,
+      chunkType: doc.chunkType,
+      name: doc.name,
+      tokenEstimate: doc.tokenEstimate,
+    },
+    score: Math.round(doc.score * 1000) / 1000,
+  }));
+};
+
+export const getAllChunksForFile = async (
+  repoId: string,
+  filePath: string
+): Promise<SearchResult[]> => {
   const chunks = await Chunk.find({
     repoId: new mongoose.Types.ObjectId(repoId),
-    embedding: { $exists: true },
-    ...(filePathFilter ? { filePath: filePathFilter } : {}),
+    filePath,
   })
-    .select('_id filePath language startLine endLine content chunkType name tokenEstimate embedding')
+    .sort({ startLine: 1 })
     .lean();
 
-  return chunks
-    .map(chunk => ({
-      chunk: {
-        _id: chunk._id.toString(),
-        filePath: chunk.filePath,
-        language: chunk.language,
-        startLine: chunk.startLine,
-        endLine: chunk.endLine,
-        content: chunk.content,
-        chunkType: chunk.chunkType,
-        name: chunk.name,
-        tokenEstimate: chunk.tokenEstimate,
-      },
-      score:
-        chunk.embedding && chunk.embedding.length === queryEmbedding.length
-          ? cosineSimilarity(queryEmbedding, chunk.embedding)
-          : 0,
-    }))
-    .filter(result => result.score >= minScore)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
-    .map(result => ({
-      ...result,
-      score: Math.round(result.score * 1000) / 1000,
-    }));
+  return chunks.map(chunk => ({
+    chunk: {
+      _id: chunk._id.toString(),
+      filePath: chunk.filePath,
+      language: chunk.language,
+      startLine: chunk.startLine,
+      endLine: chunk.endLine,
+      content: chunk.content,
+      chunkType: chunk.chunkType,
+      name: chunk.name,
+      tokenEstimate: chunk.tokenEstimate,
+    },
+    score: 1.0,
+  }));
+};
+
+export const detectFileReference = (
+  question: string,
+  allFilePaths: string[]
+): string | null => {
+  const lowerQuestion = question.toLowerCase();
+
+  const sorted = [...allFilePaths].sort(
+    (a, b) => b.length - a.length
+  );
+
+  for (const path of sorted) {
+    const fileName = path.split('/').pop() ?? '';
+
+    if (
+      fileName.length > 3 &&
+      lowerQuestion.includes(fileName.toLowerCase())
+    ) {
+      return path;
+    }
+
+    if (
+      path.length > 5 &&
+      lowerQuestion.includes(path.toLowerCase())
+    ) {
+      return path;
+    }
+  }
+
+  return null;
 };
