@@ -26,7 +26,7 @@ interface RepoData {
 
 export default function RepoPage() {
   const params = useParams() as { owner: string; name: string };
-
+  const [chatFocusFile, setChatFocusFile] = useState<string | null>(null);
   const [repo, setRepo] = useState<RepoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -94,7 +94,7 @@ export default function RepoPage() {
       <RepoHeader repo={repo} />
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-72 border-r border-gray-800 overflow-y-auto flex-shrink-0">
+        <aside className="w-72 border-r border-gray-800 overflow-y-auto shrink-0">
           <FileTree
             fileTree={repo.fileTree}
             selectedFile={selectedFile}
@@ -106,7 +106,7 @@ export default function RepoPage() {
         </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex border-b border-gray-800 flex-shrink-0">
+          <div className="flex border-b border-gray-800 shrink-0">
             {(['architecture', 'chat', 'files'] as const).map(tab => (
               <button
                 key={tab}
