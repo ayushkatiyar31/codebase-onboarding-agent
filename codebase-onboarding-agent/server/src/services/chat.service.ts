@@ -19,7 +19,8 @@ export const streamRAGAnswer = async (
   repoId: string,
   repoName: string,
   conversationHistory: ConversationTurn[],
-  res: Response
+  res: Response,
+  focusFile?: string
 ): Promise<void> => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -36,15 +37,23 @@ export const streamRAGAnswer = async (
 
     let searchResults: SearchResult[];
 
-    const repo = await Repo.findById(repoId).select('fileTree').lean();
-    const allFilePaths =
-      repo?.fileTree?.filter(f => f.type === 'blob').map(f => f.path) ?? [];
+    let targetFile = focusFile ?? null;
 
-    const referencedFile = detectFileReference(question, allFilePaths);
+    if (!targetFile) {
+      const repo = await Repo.findById(repoId).select('fileTree').lean();
 
-    if (referencedFile) {
-      sendEvent({ type: 'status', message: `Reading ${referencedFile}...` });
-      searchResults = await getAllChunksForFile(repoId, referencedFile);
+      const allFilePaths =
+        repo?.fileTree
+          ?.filter(f => f.type === 'blob')
+          .map(f => f.path) ?? [];
+
+      targetFile = detectFileReference(question, allFilePaths);
+    }
+
+    if (targetFile) {
+      sendEvent({ type: 'status', message: `Reading ${targetFile}...` });
+
+      searchResults = await getAllChunksForFile(repoId, targetFile);
 
       if (searchResults.length > 20) {
         searchResults = searchResults.slice(0, 20);
@@ -56,6 +65,7 @@ export const streamRAGAnswer = async (
         maxPerFile: 2,
       });
     }
+
 
     if (searchResults.length === 0) {
       sendEvent({

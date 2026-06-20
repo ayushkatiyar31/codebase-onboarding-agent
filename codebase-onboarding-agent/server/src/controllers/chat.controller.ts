@@ -152,12 +152,17 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
   try {
     const { owner, name } = req.params;
 
-    const { question, conversationHistory = [] } = req.body as {
+    const {
+      question,
+      conversationHistory = [],
+      focusFile,
+    } = req.body as {
       question: string;
       conversationHistory?: Array<{
         role: 'user' | 'assistant';
         content: string;
       }>;
+      focusFile?: string;
     };
 
     if (!question?.trim()) {
@@ -165,7 +170,9 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const repo = await Repo.findOne({ fullName: `${owner}/${name}` });
+    const repo = await Repo.findOne({
+      fullName: `${owner}/${name}`,
+    });
 
     if (!repo) {
       res.status(404).json({ error: 'Repo not found' });
@@ -187,11 +194,15 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
     });
 
     if (embeddedCount < totalChunks) {
-      const progress = await generateEmbeddingsForRepo(repo._id.toString());
+      const progress = await generateEmbeddingsForRepo(
+        repo._id.toString()
+      );
 
       if (progress.status === 'error') {
         res.status(502).json({
-          error: progress.error || 'Embedding generation failed',
+          error:
+            progress.error ||
+            'Embedding generation failed',
           ...progress,
         });
         return;
@@ -204,7 +215,8 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
 
       if (embeddedCount === 0) {
         res.status(500).json({
-          error: 'Embedding generation failed. Check HUGGINGFACE_API_KEY and embedding provider logs.',
+          error:
+            'Embedding generation failed. Check HUGGINGFACE_API_KEY and embedding provider logs.',
         });
         return;
       }
@@ -215,49 +227,18 @@ export const askQuestion = async (req: Request, res: Response): Promise<void> =>
       repo._id.toString(),
       repo.name,
       conversationHistory,
-      res
+      res,
+      focusFile
     );
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unknown error';
 
     if (!res.headersSent) {
       res.status(500).json({ error: message });
     }
-  }
-};
-
-export const getEmbeddingStatus = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { owner, name } = req.params;
-
-    const repo = await Repo.findOne({ fullName: `${owner}/${name}` });
-
-    if (!repo) {
-      res.status(404).json({ error: 'Repo not found' });
-      return;
-    }
-
-    const totalChunks = await ensureChunksForRepo(repo);
-
-    const embeddedChunks = await Chunk.countDocuments({
-      repoId: repo._id,
-      embedding: { $exists: true },
-    });
-
-    res.json({
-      totalChunks,
-      embeddedChunks,
-      pendingChunks: totalChunks - embeddedChunks,
-      isReady: embeddedChunks > 0 && embeddedChunks === totalChunks,
-      percentComplete:
-        totalChunks > 0
-          ? Math.round((embeddedChunks / totalChunks) * 100)
-          : 0,
-    });
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ error: message });
   }
 };
