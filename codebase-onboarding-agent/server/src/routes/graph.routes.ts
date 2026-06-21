@@ -1,5 +1,8 @@
+// server/src/routes/graph.routes.ts
+
 import { Router } from 'express';
-import { generateGraph, getGraph } from '../controllers/graph.controller';
+import { generateGraph, getGraph, getWalkthrough } from '../controllers/graph.controller';
+// ↑ added getWalkthrough to the import
 
 const router = Router();
 

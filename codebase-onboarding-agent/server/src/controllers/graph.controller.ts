@@ -6,7 +6,7 @@ import { generateWalkthrough } from '../services/walkthrough.service';
 
 export const generateGraph = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { owner, name } = req.params;
+    const { owner, name } = req.params as { owner: string; name: string };
 
     const repo = await Repo.findOne({ fullName: `${owner}/${name}` });
     if (!repo) {
@@ -37,7 +37,7 @@ export const generateGraph = async (req: Request, res: Response): Promise<void> 
 
 export const getGraph = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { owner, name } = req.params;
+    const { owner, name } = req.params as { owner: string; name: string };
 
     const repo = await Repo.findOne({ fullName: `${owner}/${name}` });
     if (!repo) {
@@ -66,15 +66,9 @@ export const getGraph = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// ─────────────────────────────────────────────
-// GET /api/graph/:owner/:name/walkthrough
-// ─────────────────────────────────────────────
-export const getWalkthrough = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getWalkthrough = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { owner, name } = req.params;
+    const { owner, name } = req.params as { owner: string; name: string };
 
     const repo = await Repo.findOne({ fullName: `${owner}/${name}` });
     if (!repo) {
