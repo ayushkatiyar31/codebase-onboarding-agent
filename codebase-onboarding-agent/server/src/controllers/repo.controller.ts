@@ -21,8 +21,7 @@ const parseGitHubUrl = (url: string): { owner: string; name: string } | null => 
   }
 };
 
-// Runs chunking without blocking the HTTP response
-// Errors here are logged but don't affect the user
+
 const triggerChunkingInBackground = async (
   repoId: string,
   owner: string,
@@ -101,9 +100,7 @@ export const ingestRepo = async (req: Request, res: Response): Promise<void> => 
       }
     );
 
-    // After saving to MongoDB, kick off chunking in the background
-    // We do NOT await this - we return the response immediately and chunk asynchronously
-    // This way the user gets a fast response and chunking happens behind the scenes
+    
     triggerChunkingInBackground(repo._id.toString(), owner, name, repo.fileTree);
 
     res.status(201).json({
