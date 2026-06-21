@@ -46,6 +46,10 @@ const triggerChunkingInBackground = async (
 
     console.log(`Background embedding complete for ${owner}/${name}`);
 
+    const { generateDependencyGraph } = await import('../services/graph.service');
+    await generateDependencyGraph(owner, name, repoId, fileTree);
+    console.log(`Background graph generation complete for ${owner}/${name}`);
+
   } catch (error) {
     console.error(
   `Background processing failed for ${owner}/${name}:`,

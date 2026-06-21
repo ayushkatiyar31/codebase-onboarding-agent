@@ -5,7 +5,7 @@ import { connectDB } from './services/db.service';
 import repoRoutes from './routes/repo.routes';
 import analysisRoutes from './routes/analysis.routes';
 import chatRoutes from './routes/chat.routes';
-
+import graphRoutes from './routes/graph.routes';
 dotenv.config();
 
 const app = express();
@@ -21,6 +21,7 @@ app.use(express.json());
 app.use('/api/repo', repoRoutes);
 app.use('/api/analysis', analysisRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/graph', graphRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
