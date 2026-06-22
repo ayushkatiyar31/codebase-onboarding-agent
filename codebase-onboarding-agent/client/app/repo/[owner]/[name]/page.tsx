@@ -11,6 +11,7 @@ import { IFileNode } from '@/types';
 import { Loader2 } from 'lucide-react';
 import DependencyGraph from '@/components/explorer/DependencyGraph';
 import WalkthroughStepper from '@/components/guide/WalkthroughStepper';
+import GuideRenderer from '@/components/guide/GuideRenderer';
 
 interface RepoData {
   _id: string;
@@ -35,8 +36,8 @@ export default function RepoPage() {
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'architecture' | 'walkthrough' | 'graph' | 'files' | 'chat'
-  >('architecture');
+  'architecture' | 'walkthrough' | 'graph' | 'files' | 'chat' | 'guide'
+>('architecture');
   const [chatFocusFile, setChatFocusFile] = useState<string | null>(null);
 
   useEffect(() => {
@@ -160,7 +161,7 @@ export default function RepoPage() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex border-b border-gray-800 shrink-0 overflow-x-auto">
             {(
-              ['architecture', 'walkthrough', 'graph', 'chat', 'files'] as const
+              ['architecture', 'walkthrough', 'graph', 'chat', 'guide', 'files'] as const
             ).map(tab => (
               <button
                 key={tab}
@@ -177,6 +178,7 @@ export default function RepoPage() {
                 {tab === 'walkthrough' && '🧭 Walkthrough'}
                 {tab === 'graph' && '🕸️ Dependencies'}
                 {tab === 'chat' && '💬 Ask Codebase'}
+                {tab === 'guide' && '📋 Guide'}
                 {tab === 'files' && '📄 Files'}
               </button>
             ))}
@@ -225,6 +227,12 @@ export default function RepoPage() {
                 }}
               />
             )}
+            {activeTab === 'guide' && (
+  <GuideRenderer
+    owner={repo.owner}
+    repoName={repo.name}
+  />
+)}
 
             {activeTab === 'files' && (
               <CodeViewer
