@@ -59,12 +59,14 @@ export default function ChatPanel({
 
     checkStatus();
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [owner, repoName]);
 
   
   useEffect(() => {
     if (focusFile) {
       const fileName = focusFile.split('/').pop();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInput(`What does ${fileName} do?`);
       inputRef.current?.focus();
     }

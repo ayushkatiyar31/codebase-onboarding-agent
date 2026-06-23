@@ -12,6 +12,8 @@ import { Loader2 } from 'lucide-react';
 import DependencyGraph from '@/components/explorer/DependencyGraph';
 import WalkthroughStepper from '@/components/guide/WalkthroughStepper';
 import GuideRenderer from '@/components/guide/GuideRenderer';
+import { FileTreeSkeleton, RepoHeaderSkeleton, ArchitectureSkeleton } from '@/components/ui/Skeleton';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface RepoData {
   _id: string;
@@ -113,13 +115,15 @@ export default function RepoPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-gray-400">
-          <Loader2 size={24} className="animate-spin text-blue-500" />
-          <p>{loadingMessage}</p>
-          <p className="text-xs text-gray-600">
-            First-time setup can take a few seconds while we read the repo from GitHub
-          </p>
+      <div className="min-h-screen bg-gray-950 text-white flex flex-col">
+        <RepoHeaderSkeleton />
+        <div className="flex flex-1 overflow-hidden">
+          <aside className="w-72 border-r border-gray-800">
+            <FileTreeSkeleton />
+          </aside>
+          <main className="flex-1">
+            <ArchitectureSkeleton />
+          </main>
         </div>
       </div>
     );
@@ -143,7 +147,8 @@ export default function RepoPage() {
       <RepoHeader repo={repo} />
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-72 border-r border-gray-800 overflow-y-auto shrink-0">
+      <aside className="w-72 border-r border-gray-800 overflow-y-auto flex-shrink-0">
+        <ErrorBoundary>
           <FileTree
             fileTree={repo.fileTree}
             selectedFile={selectedFile}
@@ -156,35 +161,36 @@ export default function RepoPage() {
               setActiveTab('chat');
             }}
           />
-        </aside>
+        </ErrorBoundary>
+      </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex border-b border-gray-800 shrink-0 overflow-x-auto">
-            {(
-              ['architecture', 'walkthrough', 'graph', 'chat', 'guide', 'files'] as const
-            ).map(tab => (
+          {/* Tab bar */}
+          <div className="flex border-b border-gray-800 flex-shrink-0 overflow-x-auto">
+            {(['architecture', 'walkthrough', 'graph', 'chat', 'guide', 'files'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-5 py-3 text-sm font-medium transition-colors
                             border-b-2 -mb-px whitespace-nowrap
-                            ${
-                              activeTab === tab
-                                ? 'border-blue-500 text-white'
-                                : 'border-transparent text-gray-500 hover:text-gray-300'
+                            ${activeTab === tab
+                              ? 'border-blue-500 text-white'
+                              : 'border-transparent text-gray-500 hover:text-gray-300'
                             }`}
               >
                 {tab === 'architecture' && '⚡ Architecture'}
-                {tab === 'walkthrough' && '🧭 Walkthrough'}
-                {tab === 'graph' && '🕸️ Dependencies'}
-                {tab === 'chat' && '💬 Ask Codebase'}
-                {tab === 'guide' && '📋 Guide'}
-                {tab === 'files' && '📄 Files'}
+                {tab === 'walkthrough'  && '🧭 Walkthrough'}
+                {tab === 'graph'        && '🕸️ Dependencies'}
+                {tab === 'chat'         && '💬 Ask Codebase'}
+                {tab === 'guide'        && '📋 Guide'}
+                {tab === 'files'        && '📄 Files'}
               </button>
             ))}
           </div>
 
+          {/* Tab content — each wrapped in its own ErrorBoundary */}
           <div className="flex-1 overflow-hidden">
+            <ErrorBoundary>
             {activeTab === 'architecture' && (
               <ArchitecturePanel
                 owner={repo.owner}
@@ -241,6 +247,7 @@ export default function RepoPage() {
                 filePath={selectedFile}
               />
             )}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

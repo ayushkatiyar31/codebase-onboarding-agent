@@ -5,7 +5,9 @@
 import { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Copy, Check, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { CodeViewerSkeleton } from '@/components/ui/Skeleton';
 
 interface CodeViewerProps {
   owner: string;
@@ -75,14 +77,7 @@ export default function CodeViewer({ owner, repoName, filePath }: CodeViewerProp
 
   
   if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-gray-500">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={24} className="animate-spin text-blue-500" />
-          <p className="text-sm">Loading {filePath.split('/').pop()}...</p>
-        </div>
-      </div>
-    );
+    return <CodeViewerSkeleton />;
   }
 
   

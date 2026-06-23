@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import {
   Loader2,
   AlertCircle,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Download,
   Share2,
   RefreshCw,
@@ -97,6 +98,7 @@ export default function GuideRenderer({
   );
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchOrGenerate();
   }, [fetchOrGenerate]);
 

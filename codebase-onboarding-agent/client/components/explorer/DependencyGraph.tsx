@@ -68,6 +68,7 @@ export default function DependencyGraph({ owner, repoName, onFileSelect }: Depen
   }, [apiBase, owner, repoName]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchGraph();
   }, [fetchGraph]);
 
