@@ -6,7 +6,7 @@ import {
 } from '../services/guide.service';
 
 export const createGuide = async (
-  req: Request,
+  req: Request<{ owner: string; name: string }>,
   res: Response
 ): Promise<void> => {
   try {
@@ -27,7 +27,7 @@ export const createGuide = async (
 };
 
 export const getGuide = async (
-  req: Request,
+  req: Request<{ owner: string; name: string }>,
   res: Response
 ): Promise<void> => {
   try {
@@ -52,7 +52,7 @@ export const getGuide = async (
 };
 
 export const getSharedGuide = async (
-  req: Request,
+  req: Request<{ shareId: string }>,
   res: Response
 ): Promise<void> => {
   try {

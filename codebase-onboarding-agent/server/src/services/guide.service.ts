@@ -44,7 +44,7 @@ export const generateGuide = async (
     description: repo.description,
     language: repo.language,
     stars: repo.stars,
-    analysis: analysisDoc.analysis,
+    analysis: analysisDoc.analysis as any,
     walkthroughSteps,
     graphStats: graphDoc.stats,
   });
