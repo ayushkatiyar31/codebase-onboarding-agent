@@ -5,8 +5,17 @@ import {
   getGuideByShareId,
 } from '../services/guide.service';
 
+interface RepoParams {
+  owner: string;
+  name: string;
+}
+
+interface ShareParams {
+  shareId: string;
+}
+
 export const createGuide = async (
-  req: Request<{ owner: string; name: string }>,
+  req: Request<RepoParams>,
   res: Response
 ): Promise<void> => {
   try {
@@ -22,12 +31,13 @@ export const createGuide = async (
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown error';
+
     res.status(500).json({ error: message });
   }
 };
 
 export const getGuide = async (
-  req: Request<{ owner: string; name: string }>,
+  req: Request<RepoParams>,
   res: Response
 ): Promise<void> => {
   try {
@@ -47,12 +57,13 @@ export const getGuide = async (
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown error';
+
     res.status(500).json({ error: message });
   }
 };
 
 export const getSharedGuide = async (
-  req: Request<{ shareId: string }>,
+  req: Request<ShareParams>,
   res: Response
 ): Promise<void> => {
   try {
@@ -72,6 +83,7 @@ export const getSharedGuide = async (
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown error';
+
     res.status(500).json({ error: message });
   }
 };
