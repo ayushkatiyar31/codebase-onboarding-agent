@@ -29,6 +29,7 @@ export const streamRAGAnswer = async (
   res.setHeader('Access-Control-Allow-Origin', process.env.CLIENT_URL || '*');
   res.flushHeaders();
 
+
   const sendEvent = (data: Record<string, unknown>) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
