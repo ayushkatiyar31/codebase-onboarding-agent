@@ -147,7 +147,7 @@ export default function RepoPage() {
       <RepoHeader repo={repo} />
 
       <div className="flex flex-1 overflow-hidden">
-      <aside className="w-72 border-r border-gray-800 overflow-y-auto flex-shrink-0">
+      <aside className="w-72 border-r border-gray-800 overflow-y-auto shrink-0">
         <ErrorBoundary>
           <FileTree
             fileTree={repo.fileTree}
@@ -166,7 +166,7 @@ export default function RepoPage() {
 
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Tab bar */}
-          <div className="flex border-b border-gray-800 flex-shrink-0 overflow-x-auto">
+          <div className="flex border-b border-gray-800 shrink-0 overflow-x-auto">
             {(['architecture', 'walkthrough', 'graph', 'chat', 'guide', 'files'] as const).map(tab => (
               <button
                 key={tab}

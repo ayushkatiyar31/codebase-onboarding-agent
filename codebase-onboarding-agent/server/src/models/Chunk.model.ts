@@ -32,4 +32,4 @@ const ChunkSchema = new Schema<IChunk>({
 
 ChunkSchema.index({ repoId: 1, filePath: 1 });
 
-export const Chunk = mongoose.model<IChunk>('Chunk', ChunkSchema, 'chunks');
+export const Chunk = mongoose.model<IChunk>('Chunk', ChunkSchema, 'chunks')
