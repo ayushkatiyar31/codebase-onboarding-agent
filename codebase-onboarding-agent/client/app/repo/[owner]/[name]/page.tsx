@@ -52,6 +52,7 @@ export default function RepoPage() {
         return null;
       }
 
+
       const data = await res.json() as { repo?: RepoData; error?: string };
 
       if (!res.ok) {
