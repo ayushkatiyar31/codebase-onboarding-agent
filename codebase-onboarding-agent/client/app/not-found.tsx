@@ -8,7 +8,7 @@ export default function NotFound() {
       <div>
         <h1 className="text-2xl font-bold mb-2">Page not found</h1>
         <p className="text-gray-400 text-sm">
-          That URL doesn't exist. Maybe the share link expired?
+          That URL does not exist. Maybe the share link expired?
         </p>
       </div>
 

@@ -59,7 +59,10 @@ export default function DependencyGraph({ owner, repoName, onFileSelect }: Depen
         }
     }, [apiBase, owner, repoName]);
     useEffect(() => {
-        fetchGraph();
+        const timeout = window.setTimeout(() => {
+            void fetchGraph();
+        }, 0);
+        return () => window.clearTimeout(timeout);
     }, [fetchGraph]);
     const { layoutedNodes, layoutedEdges } = useMemo(() => {
         if (rawEdges.length === 0)

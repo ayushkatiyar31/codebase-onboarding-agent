@@ -1,29 +1,5 @@
-const html2pdf = require('html2pdf.js') as () => {
-    set(options: {
-        margin?: number | number[];
-        filename?: string;
-        html2canvas?: {
-            scale?: number;
-            useCORS?: boolean;
-            backgroundColor?: string;
-        };
-        jsPDF?: {
-            unit?: string;
-            format?: string;
-            orientation?: string;
-        };
-        pagebreak?: {
-            mode?: string | string[];
-            before?: string | string[];
-            after?: string | string[];
-            avoid?: string | string[];
-        };
-    }): {
-        from(element: HTMLElement): {
-            save(): Promise<void>;
-        };
-    };
-};
+import html2pdf from 'html2pdf.js';
+
 export const exportElementToPdf = async (element: HTMLElement, filename: string): Promise<void> => {
     await html2pdf()
         .set({

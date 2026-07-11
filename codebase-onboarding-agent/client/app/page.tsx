@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GitBranch as Github, ArrowRight, Loader2, Zap, MessageSquare, GitBranch, BookOpen, FileText, Layers, ChevronRight, Sparkles, } from 'lucide-react';
 const DEMO_REPOS = [
@@ -20,8 +20,7 @@ export default function HomePage() {
     const [repoUrl, setRepoUrl] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
+    const mounted = true;
     const handleSubmit = async (url?: string) => {
         const target = url ?? repoUrl;
         if (!target.trim() || loading)

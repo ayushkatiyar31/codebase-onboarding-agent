@@ -80,7 +80,7 @@ export const CodeViewerSkeleton = () => (<div className="flex flex-col h-full" a
       {Array.from({ length: 18 }).map((_, i) => (<div key={i} className="flex gap-4">
           <Skeleton className="h-3 w-5 rounded shrink-0"/>
           <Skeleton className="h-3 rounded" style={{
-            width: `${Math.floor(Math.random() * 50 + 30)}%`,
+            width: `${30 + ((i % 6) * 8)}%`,
             opacity: 1 - i * 0.03,
         } as React.CSSProperties}/>
         </div>))}

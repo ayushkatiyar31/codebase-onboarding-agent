@@ -30,60 +30,63 @@ export function useSSE<T>({ url, enabled = true, onComplete, onError, }: SSEOpti
     }, []);
     useEffect(() => {
         if (!enabled || !url)
-            return;
-        eventSourceRef.current?.close();
-        setLoading(true);
-        setStreamedText('');
-        setResult(null);
-        setError('');
-        const es = new EventSource(url);
-        eventSourceRef.current = es;
-        es.onmessage = (event: MessageEvent<string>) => {
-            const raw = event.data;
-            if (raw === '[DONE]') {
+            return undefined;
+        const timer = window.setTimeout(() => {
+            eventSourceRef.current?.close();
+            setLoading(true);
+            setStreamedText('');
+            setResult(null);
+            setError('');
+            const es = new EventSource(url);
+            eventSourceRef.current = es;
+            es.onmessage = (event: MessageEvent<string>) => {
+                const raw = event.data;
+                if (raw === '[DONE]') {
+                    setLoading(false);
+                    es.close();
+                    return;
+                }
+                try {
+                    const parsed = JSON.parse(raw) as {
+                        type: 'token' | 'status' | 'complete' | 'error';
+                        content?: string;
+                        message?: string;
+                        analysis?: T;
+                        fromCache?: boolean;
+                    };
+                    switch (parsed.type) {
+                        case 'token':
+                            setStreamedText(prev => prev + (parsed.content ?? ''));
+                            break;
+                        case 'status':
+                            setStatus(parsed.message ?? '');
+                            break;
+                        case 'complete':
+                            if (parsed.analysis) {
+                                setResult(parsed.analysis);
+                                onComplete?.(parsed.analysis);
+                            }
+                            break;
+                        case 'error':
+                            setError(parsed.message ?? 'Unknown error');
+                            setLoading(false);
+                            onError?.(parsed.message ?? 'Unknown error');
+                            es.close();
+                            break;
+                    }
+                }
+                catch {
+                }
+            };
+            es.onerror = () => {
+                setError('Connection lost. Click retry to try again.');
                 setLoading(false);
                 es.close();
-                return;
-            }
-            try {
-                const parsed = JSON.parse(raw) as {
-                    type: 'token' | 'status' | 'complete' | 'error';
-                    content?: string;
-                    message?: string;
-                    analysis?: T;
-                    fromCache?: boolean;
-                };
-                switch (parsed.type) {
-                    case 'token':
-                        setStreamedText(prev => prev + (parsed.content ?? ''));
-                        break;
-                    case 'status':
-                        setStatus(parsed.message ?? '');
-                        break;
-                    case 'complete':
-                        if (parsed.analysis) {
-                            setResult(parsed.analysis);
-                            onComplete?.(parsed.analysis);
-                        }
-                        break;
-                    case 'error':
-                        setError(parsed.message ?? 'Unknown error');
-                        setLoading(false);
-                        onError?.(parsed.message ?? 'Unknown error');
-                        es.close();
-                        break;
-                }
-            }
-            catch {
-            }
-        };
-        es.onerror = () => {
-            setError('Connection lost. Click retry to try again.');
-            setLoading(false);
-            es.close();
-        };
+            };
+        }, 0);
         return () => {
-            es.close();
+            window.clearTimeout(timer);
+            eventSourceRef.current?.close();
         };
     }, [url, enabled, retryCount]);
     return { streamedText, result, status, loading, error, retry };

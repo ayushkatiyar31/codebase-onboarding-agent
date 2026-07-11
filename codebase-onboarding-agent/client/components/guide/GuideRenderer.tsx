@@ -63,7 +63,10 @@ export default function GuideRenderer({ owner, repoName, }: GuideRendererProps) 
         }
     }, [apiBase, owner, repoName]);
     useEffect(() => {
-        fetchOrGenerate();
+        const timeout = window.setTimeout(() => {
+            void fetchOrGenerate();
+        }, 0);
+        return () => window.clearTimeout(timeout);
     }, [fetchOrGenerate]);
     const handleExportPdf = async () => {
         if (!contentRef.current)
