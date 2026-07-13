@@ -21,6 +21,7 @@ export const RepoHeaderSkeleton = () => (<div className="border-b border-gray-80
     <Skeleton className="h-4 w-12 rounded"/>
     <Skeleton className="h-4 w-20 rounded"/>
   </div>);
+  
 export const ArchitectureSkeleton = () => (<div className="p-6 flex flex-col gap-6" aria-label="Loading architecture analysis...">
     <Skeleton className="h-5 w-48 rounded"/>
 
