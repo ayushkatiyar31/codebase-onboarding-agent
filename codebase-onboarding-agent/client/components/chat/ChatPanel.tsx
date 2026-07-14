@@ -287,6 +287,7 @@ function MessageBubble({ message, onFileClick }: {
           </span>) : null}
       </div>
     </div>);
+    
 }
 function SimpleMarkdown({ content }: {
     content: string;
