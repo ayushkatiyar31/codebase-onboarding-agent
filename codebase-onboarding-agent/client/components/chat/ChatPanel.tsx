@@ -7,6 +7,7 @@ interface Props {
     repoName: string;
     repoId: string;
     onFileSelect?: (path: string) => void;
+    selectedFile?: string | null;
 }
 const STARTERS = [
     'How does authentication work?',
@@ -14,7 +15,7 @@ const STARTERS = [
     'Where is the database connection set up?',
     'What does the main entry point do?',
 ];
-export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Props) {
+export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selectedFile }: Props) {
     const apiBase = process.env.NEXT_PUBLIC_API_URL;
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
@@ -80,10 +81,15 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Pro
             { id: asstId, role: 'assistant', content: '', isStreaming: true, timestamp: new Date() },
         ]);
         try {
+            const focusFile = selectedFile?.trim() || undefined;
             const response = await fetch(`${apiBase}/api/chat/${owner}/${repoName}/ask`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question, conversationHistory: history }),
+                body: JSON.stringify({
+                    question,
+                    conversationHistory: history,
+                    ...(focusFile ? { focusFile } : {}),
+                }),
             });
             if (!response.ok || !response.body)
                 throw new Error('Stream failed');
@@ -139,7 +145,7 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect }: Pro
             setIsStreaming(false);
         }
         inputRef.current?.focus();
-    }, [input, isStreaming, messages, apiBase, owner, repoName]);
+    }, [input, isStreaming, messages, apiBase, owner, repoName, selectedFile]);
     if (isEmbedding || (embeddingStatus && !embeddingStatus.isReady && embeddingStatus.totalChunks > 0)) {
         return (<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, padding: 32 }}>
         <div style={{

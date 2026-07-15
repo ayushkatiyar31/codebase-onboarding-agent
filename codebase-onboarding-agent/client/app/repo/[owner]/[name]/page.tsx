@@ -68,6 +68,10 @@ export default function RepoPage() {
         setSelectedFile(path);
         setActiveTab('files');
     };
+    const handleAskAboutFile = (path: string) => {
+        setSelectedFile(path);
+        setActiveTab('chat');
+    };
     if (loading) {
         return (<div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
         <RepoHeaderSkeleton />
@@ -97,7 +101,7 @@ export default function RepoPage() {
             background: 'var(--bg-surface)',
         }}>
           <ErrorBoundary>
-            <FileTree fileTree={repo.fileTree} selectedFile={selectedFile} onFileSelect={path => { setSelectedFile(path); setActiveTab('files'); }}/>
+            <FileTree fileTree={repo.fileTree} selectedFile={selectedFile} onFileSelect={path => { setSelectedFile(path); setActiveTab('files'); }} onAskAboutFile={handleAskAboutFile}/>
           </ErrorBoundary>
         </aside>
 
@@ -145,7 +149,9 @@ export default function RepoPage() {
               {activeTab === 'architecture' && <ArchitecturePanel owner={repo.owner} repoName={repo.name}/>}
               {activeTab === 'walkthrough' && <WalkthroughStepper owner={repo.owner} repoName={repo.name} onFileSelect={handleFileSelect}/>}
               {activeTab === 'graph' && <DependencyGraph owner={repo.owner} repoName={repo.name} onFileSelect={handleFileSelect}/>}
-              {activeTab === 'chat' && <ChatPanel owner={repo.owner} repoName={repo.name} repoId={repo._id} onFileSelect={handleFileSelect}/>}
+              <div style={{ display: activeTab === 'chat' ? 'block' : 'none', height: '100%' }}>
+                <ChatPanel owner={repo.owner} repoName={repo.name} repoId={repo._id} onFileSelect={handleFileSelect} selectedFile={selectedFile}/>
+              </div>
               {activeTab === 'guide' && <GuideRenderer owner={repo.owner} repoName={repo.name}/>}
               {activeTab === 'files' && <CodeViewer owner={repo.owner} repoName={repo.name} filePath={selectedFile}/>}
             </ErrorBoundary>
