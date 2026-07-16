@@ -1,6 +1,6 @@
 'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, FileText, Sparkles, CornerDownLeft } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Send, Loader2, FileText, Sparkles } from 'lucide-react';
 import { ChatMessage, ChatSource, EmbeddingStatus } from '@/types/chat';
 interface Props {
     owner: string;
@@ -15,17 +15,63 @@ const STARTERS = [
     'Where is the database connection set up?',
     'What does the main entry point do?',
 ];
+interface PersistedChatMessage extends Omit<ChatMessage, 'timestamp'> {
+    timestamp: string;
+}
+function loadPersistedMessages(storageKey: string): ChatMessage[] {
+    if (typeof window === 'undefined')
+        return [];
+    try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw)
+            return [];
+        const parsed = JSON.parse(raw) as PersistedChatMessage[];
+        return parsed.map(message => ({ ...message, timestamp: new Date(message.timestamp) }));
+    }
+    catch {
+        return [];
+    }
+}
+function savePersistedMessages(storageKey: string, messages: ChatMessage[]) {
+    if (typeof window === 'undefined')
+        return;
+    try {
+        if (messages.length === 0) {
+            window.localStorage.removeItem(storageKey);
+            return;
+        }
+        const payload = messages.map(message => ({
+            ...message,
+            timestamp: message.timestamp instanceof Date ? message.timestamp.toISOString() : new Date(message.timestamp).toISOString(),
+        }));
+        window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+    catch {
+    }
+}
 export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selectedFile }: Props) {
     const apiBase = process.env.NEXT_PUBLIC_API_URL;
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const storageKey = `rag-chat-history:${owner}/${repoName}`;
+    const [messages, setMessages] = useState<ChatMessage[]>(() => loadPersistedMessages(storageKey));
     const [input, setInput] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [embeddingStatus, setEmbeddingStatus] = useState<EmbeddingStatus | null>(null);
     const [isEmbedding, setIsEmbedding] = useState(false);
     const [embedProgress, setEmbedProgress] = useState(0);
+    const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const historyEntries = useMemo(() => messages.filter(message => message.role === 'user' && message.content.trim()).slice().reverse(), [messages]);
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+    useEffect(() => {
+        setMessages(loadPersistedMessages(storageKey));
+        setInput('');
+        setHighlightedMessageId(null);
+    }, [storageKey]);
+    useEffect(() => {
+        savePersistedMessages(storageKey, messages);
+    }, [messages, storageKey]);
     useEffect(() => {
         const check = async () => {
             try {
@@ -66,6 +112,17 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
         };
         es.onerror = () => { es.close(); setIsEmbedding(false); };
     }, [apiBase, owner, repoName]);
+    const jumpToMessage = useCallback((messageId: string) => {
+        const target = messages.find(message => message.id === messageId);
+        if (!target)
+            return;
+        const targetRef = messageRefs.current[messageId];
+        targetRef?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setHighlightedMessageId(messageId);
+        setInput(target.content);
+        inputRef.current?.focus();
+        window.setTimeout(() => setHighlightedMessageId(null), 1800);
+    }, [messages]);
     const sendMessage = useCallback(async () => {
         const question = input.trim();
         if (!question || isStreaming)
@@ -198,7 +255,26 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
             </div>
           </div>)}
 
-        {messages.map(msg => <MessageBubble key={msg.id} message={msg} onFileClick={onFileSelect}/>)}
+        {historyEntries.length > 0 && (<div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>History</span>
+              <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{historyEntries.length}</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {historyEntries.map(entry => (<button key={entry.id} onClick={() => jumpToMessage(entry.id)} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '7px 10px', borderRadius: 999,
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer',
+                    transition: 'all 0.15s',
+                }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}>
+                <span style={{ fontSize: 10, color: 'var(--accent-light)' }}>↩</span>
+                <span>{entry.content.length > 56 ? `${entry.content.slice(0, 56)}…` : entry.content}</span>
+              </button>))}
+            </div>
+          </div>)}
+
+        {messages.map(msg => <div key={msg.id} ref={el => { messageRefs.current[msg.id] = el; }}><MessageBubble message={msg} onFileClick={onFileSelect} isHighlighted={highlightedMessageId === msg.id}/></div>)}
         <div ref={messagesEndRef}/>
       </div>
 
@@ -250,9 +326,10 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
       </div>
     </div>);
 }
-function MessageBubble({ message, onFileClick }: {
+function MessageBubble({ message, onFileClick, isHighlighted = false }: {
     message: ChatMessage;
     onFileClick?: (p: string) => void;
+    isHighlighted?: boolean;
 }) {
     const isUser = message.role === 'user';
     return (<div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: isUser ? 'flex-end' : 'flex-start' }}>
@@ -283,6 +360,7 @@ function MessageBubble({ message, onFileClick }: {
             border: isUser ? 'none' : '1px solid var(--border-subtle)',
             fontSize: 13, lineHeight: 1.65,
             color: isUser ? '#fff' : 'var(--text-primary)',
+            boxShadow: isHighlighted ? '0 0 0 2px rgba(99,102,241,0.35)' : undefined,
         }}>
         {message.content ? (<SimpleMarkdown content={message.content}/>) : message.isStreaming ? (<span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
             {[0, 150, 300].map(delay => (<span key={delay} className="glow-pulse" style={{
