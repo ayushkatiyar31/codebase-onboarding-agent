@@ -73,7 +73,7 @@ export default function RepoPage() {
         setActiveTab('chat');
     };
     if (loading) {
-        return (<div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
+        return (<div style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
         <RepoHeaderSkeleton />
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           <aside style={{ width: 260, borderRight: '1px solid var(--border-subtle)' }}>
@@ -84,11 +84,11 @@ export default function RepoPage() {
       </div>);
     }
     if (error || !repo) {
-        return (<div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        return (<div style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <p style={{ color: 'var(--red)' }}>{error || 'Repository not found'}</p>
       </div>);
     }
-    return (<div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', color: 'var(--text-primary)' }}>
+    return (<div style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', color: 'var(--text-primary)' }}>
       <RepoHeader repo={repo}/>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -106,7 +106,7 @@ export default function RepoPage() {
         </aside>
 
         
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-base)' }}>
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-base)', minHeight: 0 }}>
 
           
           <div style={{
@@ -144,7 +144,7 @@ export default function RepoPage() {
           </div>
 
           
-          <div style={{ flex: 1, overflow: 'hidden' }}>
+          <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
             <ErrorBoundary>
               {activeTab === 'architecture' && <ArchitecturePanel owner={repo.owner} repoName={repo.name}/>}
               {activeTab === 'walkthrough' && <WalkthroughStepper owner={repo.owner} repoName={repo.name} onFileSelect={handleFileSelect}/>}

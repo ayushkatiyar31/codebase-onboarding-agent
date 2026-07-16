@@ -224,10 +224,10 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
         </div>
       </div>);
     }
-    return (<div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    return (<div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
 
       
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {messages.length === 0 && (<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 20 }}>
             <div style={{
                 width: 44, height: 44, borderRadius: 13,
@@ -283,6 +283,10 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
             borderTop: '1px solid var(--border-subtle)',
             padding: '12px 16px',
             background: 'var(--bg-surface)',
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 4,
+            flexShrink: 0,
         }}>
         <div style={{
             display: 'flex', gap: 10, alignItems: 'flex-end',
