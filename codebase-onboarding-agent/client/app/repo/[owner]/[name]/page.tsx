@@ -88,17 +88,18 @@ export default function RepoPage() {
         <p style={{ color: 'var(--red)' }}>{error || 'Repository not found'}</p>
       </div>);
     }
-    return (<div style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', color: 'var(--text-primary)' }}>
+return (<div style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', background: 'radial-gradient(circle at top left, rgba(99, 102, 241, 0.16), transparent 24%), var(--bg-base)', display: 'flex', flexDirection: 'column', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-md)' }}>
       <RepoHeader repo={repo}/>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         
         <aside style={{
-            width: 260, flexShrink: 0,
+            width: 270, flexShrink: 0,
             borderRight: '1px solid var(--border-subtle)',
             overflowY: 'auto',
-            background: 'var(--bg-surface)',
+            background: 'linear-gradient(180deg, rgba(17, 17, 24, 0.96) 0%, rgba(10, 10, 15, 0.98) 100%)',
+            backdropFilter: 'blur(10px)',
         }}>
           <ErrorBoundary>
             <FileTree fileTree={repo.fileTree} selectedFile={selectedFile} onFileSelect={path => { setSelectedFile(path); setActiveTab('files'); }} onAskAboutFile={handleAskAboutFile}/>
@@ -106,30 +107,31 @@ export default function RepoPage() {
         </aside>
 
         
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-base)', minHeight: 0 }}>
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'linear-gradient(180deg, rgba(255,255,255,0.02), transparent)', minHeight: 0 }}>
 
           
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 2,
-            padding: '8px 12px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '10px 12px',
             borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-surface)',
+            background: 'rgba(255,255,255,0.025)',
             overflowX: 'auto', flexShrink: 0,
+            backdropFilter: 'blur(8px)',
         }}>
             {TABS.map(tab => {
             const isActive = activeTab === tab.id;
             return (<button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                     display: 'flex', alignItems: 'center', gap: 6,
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    border: isActive ? '1px solid var(--border-default)' : '1px solid transparent',
-                    background: isActive ? 'var(--bg-elevated)' : 'transparent',
+                    padding: '7px 12px',
+                    borderRadius: 999,
+                    border: isActive ? '1px solid rgba(129, 140, 248, 0.3)' : '1px solid transparent',
+                    background: isActive ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(129, 140, 248, 0.1))' : 'transparent',
                     color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                    fontSize: 12, fontWeight: isActive ? 600 : 400,
+                    fontSize: 12, fontWeight: isActive ? 600 : 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     whiteSpace: 'nowrap',
-                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                    boxShadow: isActive ? '0 0 0 1px rgba(99,102,241,0.16), 0 10px 24px rgba(15, 23, 42, 0.16)' : 'none',
                 }} onMouseEnter={e => {
                     if (!isActive)
                         (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
