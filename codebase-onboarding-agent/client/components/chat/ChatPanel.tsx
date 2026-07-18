@@ -228,28 +228,28 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
 
       
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {messages.length === 0 && (<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 20 }}>
+        {messages.length === 0 && (<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, padding: '24px', borderRadius: 'var(--radius-xl)', border: '1px solid rgba(129,140,248,0.16)', background: 'linear-gradient(135deg, rgba(99,102,241,0.10), rgba(255,255,255,0.02))' }}>
             <div style={{
-                width: 44, height: 44, borderRadius: 13,
-                background: 'var(--accent-dim)', border: '1px solid rgba(99,102,241,0.2)',
+                width: 48, height: 48, borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(129,140,248,0.14))', border: '1px solid rgba(99,102,241,0.22)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Sparkles size={18} color="var(--accent-light)"/>
+              <Sparkles size={20} color="var(--accent-light)"/>
             </div>
-            <div style={{ textAlign: 'center', maxWidth: 340 }}>
-              <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Ask anything about this codebase</p>
+            <div style={{ textAlign: 'center', maxWidth: 360 }}>
+              <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>Ask anything about this codebase</p>
               <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
                 Answers grounded in the actual source code, with file citations
               </p>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, width: '100%', maxWidth: 380 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 420 }}>
               {STARTERS.map(q => (<button key={q} onClick={() => { setInput(q); inputRef.current?.focus(); }} style={{
-                    textAlign: 'left', padding: '9px 14px',
-                    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                    textAlign: 'left', padding: '10px 12px',
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-md)', fontSize: 12,
                     color: 'var(--text-secondary)', cursor: 'pointer',
                     transition: 'all 0.15s',
-                }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}>
+                }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(99,102,241,0.25)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(99,102,241,0.10)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; }}>
                   {q}
                 </button>))}
             </div>
@@ -264,10 +264,10 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
               {historyEntries.map(entry => (<button key={entry.id} onClick={() => jumpToMessage(entry.id)} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 6,
                     padding: '7px 10px', borderRadius: 999,
-                    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(99,102,241,0.10))', border: '1px solid rgba(129,140,248,0.16)',
                     color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer',
                     transition: 'all 0.15s',
-                }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}>
+                }} onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(99,102,241,0.25)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)'; }} onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(129,140,248,0.16)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}>
                 <span style={{ fontSize: 10, color: 'var(--accent-light)' }}>↩</span>
                 <span>{entry.content.length > 56 ? `${entry.content.slice(0, 56)}…` : entry.content}</span>
               </button>))}
@@ -280,9 +280,9 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
 
       
       <div style={{
-            borderTop: '1px solid var(--border-subtle)',
+            borderTop: '1px solid rgba(129,140,248,0.14)',
             padding: '12px 16px',
-            background: 'var(--bg-surface)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))',
             position: 'sticky',
             bottom: 0,
             zIndex: 4,
@@ -290,11 +290,12 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
         }}>
         <div style={{
             display: 'flex', gap: 10, alignItems: 'flex-end',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border-default)',
+            background: 'rgba(10, 15, 27, 0.9)',
+            border: '1px solid rgba(129,140,248,0.22)',
             borderRadius: 'var(--radius-lg)',
             padding: '10px 12px',
             transition: 'border-color 0.15s',
+            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.24)',
         }}>
           <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter')
         sendMessage(); }} placeholder="Ask about this codebase..." disabled={isStreaming} rows={1} style={{
@@ -311,12 +312,13 @@ export default function ChatPanel({ owner, repoName, repoId, onFileSelect, selec
               ⌘↵
             </span>
             <button onClick={sendMessage} disabled={isStreaming || !input.trim()} style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: isStreaming || !input.trim() ? 'var(--bg-hover)' : 'var(--accent)',
+            width: 34, height: 34, borderRadius: 10,
+            background: isStreaming || !input.trim() ? 'var(--bg-hover)' : 'linear-gradient(135deg, var(--accent), #4f46e5)',
             border: 'none', cursor: isStreaming || !input.trim() ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             opacity: !input.trim() ? 0.4 : 1,
             transition: 'all 0.15s',
+            boxShadow: isStreaming || !input.trim() ? 'none' : '0 10px 20px rgba(99, 102, 241, 0.26)',
         }}>
               {isStreaming
             ? <Loader2 size={14} color="#fff" style={{ animation: 'spin 1s linear infinite' }}/>

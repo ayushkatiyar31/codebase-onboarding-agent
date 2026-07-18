@@ -1,13 +1,15 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText, } from 'lucide-react';
+import { ChevronRight, ChevronDown, Folder, FolderOpen, FileText } from 'lucide-react';
 import { IFileNode } from '@/types';
+
 interface FileTreeProps {
     fileTree: IFileNode[];
     selectedFile: string | null;
     onFileSelect: (path: string) => void;
     onAskAboutFile?: (path: string) => void;
 }
+
 interface TreeNode {
     name: string;
     path: string;
@@ -15,9 +17,11 @@ interface TreeNode {
     size?: number;
     children: TreeNode[];
 }
+
 const isDirectoryNode = (node: IFileNode): boolean => {
     return node.type === 'tree' || node.type === 'directory';
 };
+
 const buildTree = (nodes: IFileNode[]): TreeNode[] => {
     const root: TreeNode[] = [];
     const sorted = [...nodes].sort((a, b) => {
@@ -37,9 +41,7 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
                 const newNode: TreeNode = {
                     name,
                     path: parts.slice(0, i + 1).join('/'),
-                    type: isLast && !isDirectoryNode(node)
-                        ? 'file'
-                        : 'directory',
+                    type: isLast && !isDirectoryNode(node) ? 'file' : 'directory',
                     size: isLast ? node.size : undefined,
                     children: [],
                 };
@@ -51,7 +53,8 @@ const buildTree = (nodes: IFileNode[]): TreeNode[] => {
     }
     return root;
 };
-const TreeNodeItem = ({ node, depth, selectedFile, onFileClick, onAskAboutFile, }: {
+
+const TreeNodeItem = ({ node, depth, selectedFile, onFileClick, onAskAboutFile }: {
     node: TreeNode;
     depth: number;
     selectedFile: string | null;
@@ -61,54 +64,98 @@ const TreeNodeItem = ({ node, depth, selectedFile, onFileClick, onAskAboutFile, 
     const [open, setOpen] = useState(depth === 0);
     const isFolder = node.type === 'directory';
     const isSelected = selectedFile === node.path;
-    return (<div>
-      <div className={`group w-full flex items-center gap-1.5 px-2 py-1 text-sm rounded transition-colors duration-100 ${isSelected
-            ? 'bg-blue-600/20 text-blue-300'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'}`} style={{ paddingLeft: `${8 + depth * 14}px` }}>
-        <button onClick={() => isFolder ? setOpen((o) => !o) : onFileClick(node)} className="flex items-center gap-1.5 flex-1 text-left min-w-0">
-          <span className="w-3.5 shrink-0">
-            {isFolder &&
-            (open ? (<ChevronDown size={12}/>) : (<ChevronRight size={12}/>))}
-          </span>
+    const indent = 8 + depth * 14;
 
-          {isFolder ? (open ? (<FolderOpen size={14} className="text-blue-400 shrink-0"/>) : (<Folder size={14} className="text-blue-400 shrink-0"/>)) : (<FileText size={14} className={`shrink-0 ${isSelected
-                ? 'text-blue-400'
-                : 'text-gray-400'}`}/>)}
+    return (
+        <div>
+            <div
+                onClick={() => (isFolder ? setOpen((o) => !o) : onFileClick(node))}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 10px',
+                    margin: '2px 8px',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    paddingLeft: `${indent}px`,
+                    background: isSelected ? 'linear-gradient(90deg, rgba(99,102,241,0.24), rgba(129,140,248,0.12))' : 'transparent',
+                    border: isSelected ? '1px solid rgba(129,140,248,0.24)' : '1px solid transparent',
+                    color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 8px 20px rgba(15, 23, 42, 0.18)' : 'none',
+                }}
+            >
+                <span style={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {isFolder && (open ? <ChevronDown size={12} /> : <ChevronRight size={12} />)}
+                </span>
 
-          <span className="truncate">{node.name}</span>
-        </button>
+                {isFolder ? (
+                    open ? <FolderOpen size={14} style={{ color: 'var(--accent-light)', flexShrink: 0 }} /> : <Folder size={14} style={{ color: 'var(--accent-light)', flexShrink: 0 }} />
+                ) : (
+                    <FileText size={14} style={{ color: isSelected ? 'var(--accent-light)' : 'var(--text-tertiary)', flexShrink: 0 }} />
+                )}
 
-        {!isFolder && onAskAboutFile && (<button onClick={(e) => {
-                e.stopPropagation();
-                onAskAboutFile(node.path);
-            }} className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-1.5 py-0.5 rounded bg-blue-600/20 text-blue-300 hover:bg-blue-600/40 shrink-0" title={`Ask about ${node.name}`}>
-            Ask
-          </button>)}
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                    {node.name}
+                </span>
 
-        {!isFolder && node.size !== undefined && (<span className="ml-auto text-xs text-gray-600 shrink-0">
-            {formatBytes(node.size)}
-          </span>)}
-      </div>
+                {!isFolder && onAskAboutFile && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAskAboutFile(node.path);
+                        }}
+                        style={{
+                            opacity: 0.9,
+                            border: '1px solid rgba(129,140,248,0.16)',
+                            background: 'rgba(99,102,241,0.14)',
+                            color: 'var(--accent-light)',
+                            borderRadius: 999,
+                            padding: '3px 8px',
+                            fontSize: 10,
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                        }}
+                        title={`Ask about ${node.name}`}
+                    >
+                        Ask
+                    </button>
+                )}
 
-      {isFolder &&
-            open &&
-            node.children.map((child) => (<TreeNodeItem key={child.path} node={child} depth={depth + 1} selectedFile={selectedFile} onFileClick={onFileClick} onAskAboutFile={onAskAboutFile}/>))}
-    </div>);
+                {!isFolder && node.size !== undefined && (
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>
+                        {formatBytes(node.size)}
+                    </span>
+                )}
+            </div>
+
+            {isFolder && open && node.children.map((child) => (
+                <TreeNodeItem key={child.path} node={child} depth={depth + 1} selectedFile={selectedFile} onFileClick={onFileClick} onAskAboutFile={onAskAboutFile} />
+            ))}
+        </div>
+    );
 };
-export default function FileTree({ fileTree, selectedFile, onFileSelect, onAskAboutFile, }: FileTreeProps) {
-    const tree = useMemo(() => buildTree(fileTree), [fileTree]);
-    return (<div className="py-2">
-      <p className="text-xs font-medium text-gray-500 px-3 py-2 uppercase tracking-wider">
-        Files
-      </p>
 
-      {tree.map((node) => (<TreeNodeItem key={node.path} node={node} depth={0} selectedFile={selectedFile} onFileClick={(node) => onFileSelect(node.path)} onAskAboutFile={onAskAboutFile}/>))}
-    </div>);
+export default function FileTree({ fileTree, selectedFile, onFileSelect, onAskAboutFile }: FileTreeProps) {
+    const tree = useMemo(() => buildTree(fileTree), [fileTree]);
+    return (
+        <div style={{ padding: '10px 0 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px 8px' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+                    Files
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{tree.length} roots</span>
+            </div>
+            {tree.map((node) => (
+                <TreeNodeItem key={node.path} node={node} depth={0} selectedFile={selectedFile} onFileClick={(node) => onFileSelect(node.path)} onAskAboutFile={onAskAboutFile} />
+            ))}
+        </div>
+    );
 }
+
 const formatBytes = (bytes: number): string => {
-    if (bytes < 1024)
-        return `${bytes}B`;
-    if (bytes < 1024 * 1024)
-        return `${(bytes / 1024).toFixed(1)}KB`;
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 };
