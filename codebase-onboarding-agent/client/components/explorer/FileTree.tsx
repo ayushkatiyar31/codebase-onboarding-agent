@@ -79,11 +79,11 @@ const TreeNodeItem = ({ node, depth, selectedFile, onFileClick, onAskAboutFile }
                     borderRadius: 'var(--radius-md)',
                     cursor: 'pointer',
                     paddingLeft: `${indent}px`,
-                    background: isSelected ? 'linear-gradient(90deg, rgba(99,102,241,0.24), rgba(129,140,248,0.12))' : 'transparent',
-                    border: isSelected ? '1px solid rgba(129,140,248,0.24)' : '1px solid transparent',
+                    background: isSelected ? 'linear-gradient(90deg, rgba(99,102,241,0.16), rgba(129,140,248,0.08))' : 'transparent',
+                    border: isSelected ? '1px solid rgba(129,140,248,0.16)' : '1px solid transparent',
                     color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
                     transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 8px 20px rgba(15, 23, 42, 0.18)' : 'none',
+                    boxShadow: isSelected ? '0 6px 16px rgba(15, 23, 42, 0.14)' : 'none',
                 }}
             >
                 <span style={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
