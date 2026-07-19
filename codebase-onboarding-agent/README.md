@@ -2,8 +2,6 @@
 
 > Paste any public GitHub URL and get an interactive architecture analysis, AI-powered Q&A, dependency graph, and shareable onboarding guide — generated from the actual source code.
 
-![Demo](./docs/demo.gif)
-<!-- Record a Loom walkthrough and export a GIF for this — see Step 8 -->
 
 ## Features
 
