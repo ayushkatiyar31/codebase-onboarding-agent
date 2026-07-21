@@ -1,132 +1,107 @@
 # Codebase Onboarding Agent
 
-> Paste any public GitHub URL and get an interactive architecture analysis, AI-powered Q&A, dependency graph, and shareable onboarding guide — generated from the actual source code.
+A full-stack AI project that helps developers understand any GitHub repository quickly. Instead of reading many files manually, a user can paste a repository link and get an interactive architecture summary, smart Q&A, dependency map, and a guided onboarding experience.
 
+## What problem this project solves
 
-## Features
+New developers often struggle to understand a large codebase at the beginning. This project makes onboarding faster by turning source code into simple, structured insights.
 
-| Feature | What it does |
-|---|---|
-| ⚡ **Architecture Analysis** | Auto-detects tech stack, architecture pattern, entry points, key directories, and gotchas — streamed in real time |
-| 💬 **Ask the Codebase** | RAG-powered Q&A with file citations — semantic search over vector-embedded code chunks |
-| 🕸️ **Dependency Graph** | Interactive file dependency visualisation using react-flow + Dagre auto-layout |
-| 🧭 **Guided Walkthrough** | AI-curated reading order from entry points to core logic |
-| 📋 **Exportable Guide** | PDF download or shareable link — no account needed to view |
-| ⚡ **Instant on revisit** | All analysis cached in MongoDB — second visit loads in under a second |
+In simple words:
+- it explains what a project does,
+- shows how the system is organized,
+- answers questions about the code,
+- and helps teams share knowledge easily.
 
-## Architecture
+## Why this project is useful
 
-```
-┌─────────────────┐     ┌──────────────────────────────┐
-│  Next.js        │────▶│  Express API                 │
-│  (App Router)   │     │  /api/repo    → GitHub API   │
-│                 │◀────│  /api/chat    → RAG pipeline  │
-│  • File tree    │ SSE │  /api/graph   → Dep parser   │
-│  • Code viewer  │     │  /api/analysis → Groq        │
-│  • Chat panel   │     │  /api/guide   → Guide gen    │
-│  • Dep graph    │     └──────────────┬───────────────┘
-│  • Guide view   │                    │
-└─────────────────┘          ┌─────────▼──────────┐
-                             │  MongoDB Atlas      │
-                             │  • repos            │
-                             │  • chunks + vectors │
-                             │  • analyses (cache) │
-                             │  • graphs (cache)   │
-                             │  • guides (cache)   │
-                             └────────────────────┘
-```
+For a company or a developer, this saves time and reduces confusion. It is useful for:
+- new team members joining a project,
+- open-source contributors exploring a repository,
+- senior developers who want a quick architecture overview,
+- interviews and project demonstrations.
 
-### RAG Pipeline
+## Core features
 
-```
-User question
-     │
-     ▼
-Embed with BAAI/bge-small-en-v1.5 (HuggingFace)
-     │
-     ▼
-Atlas Vector Search ($vectorSearch aggregation)
-     │  cosine similarity over 384-dim vectors
-     ▼
-Top-5 most relevant code chunks retrieved
-     │
-     ▼
-Injected as context into Groq prompt (llama-3.3-70b-versatile)
-     │
-     ▼
-Answer streamed token-by-token via SSE → browser
-```
+- Architecture analysis: identifies stack, structure, entry points, and important folders.
+- AI-powered Q&A: allows users to ask questions about the repository and get answers with code context.
+- Dependency graph: visualizes how files and modules connect.
+- Guided walkthrough: suggests a smart reading order for understanding the project.
+- Shareable guide: users can export or share an onboarding guide.
 
-## Tech Stack
+## How the project works
 
-**Frontend:** Next.js 15 (App Router) · TypeScript · Tailwind CSS · react-flow · react-markdown
+1. The user enters a public GitHub repository URL.
+2. The backend fetches repository files from GitHub.
+3. The code is split into smaller meaningful chunks.
+4. These chunks are converted into embeddings for semantic search.
+5. AI models analyze the code and generate architecture insights, answers, and guided explanations.
+6. The frontend displays everything in a clean, interactive experience.
 
-**Backend:** Node.js · Express · TypeScript · Mongoose
+## Technical architecture
 
-**AI / ML:** Groq (llama-3.3-70b-versatile) · Hugging Face Inference API (BAAI/bge-small-en-v1.5)
+- Frontend: Next.js, React, TypeScript
+- Backend: Node.js and Express
+- Database: MongoDB Atlas
+- AI services: Groq for generation and Hugging Face for embeddings
+- Search: vector search over indexed code chunks
 
-**Database:** MongoDB Atlas · Atlas Vector Search
+The app follows a simple flow:
 
-**Deployment:** Vercel (frontend) · Render (backend)
+Frontend -> Backend API -> GitHub repo data + AI processing -> MongoDB cache -> UI results
 
-## Local Setup
+## Tech stack
+
+- Frontend: Next.js, React, TypeScript, Tailwind CSS, React Flow
+- Backend: Express, Node.js, TypeScript, Mongoose
+- AI/ML: Groq, Hugging Face embeddings
+- Data storage: MongoDB Atlas with vector search
+
+## Local setup
 
 ### Prerequisites
 
 - Node.js 20+
-- MongoDB Atlas account (free tier works)
-- Groq API key — [console.groq.com](https://console.groq.com)
-- Hugging Face API key — [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
-- GitHub Personal Access Token (public\_repo scope)
+- MongoDB Atlas account
+- Groq API key
+- Hugging Face API key
+- GitHub personal access token
 
-### 1. Clone and install
+### Install dependencies
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/codebase-onboarding-agent
+git clone <your-repo-url>
 cd codebase-onboarding-agent
 
 cd server && npm install
 cd ../client && npm install
 ```
 
-### 2. Set up MongoDB Atlas Vector Search index
+### Environment variables
 
-In Atlas UI → your cluster → Atlas Search → Create Index → Atlas Vector Search → select `chunks` collection → JSON editor:
+Create environment files for both apps.
 
-```json
-{
-  "fields": [
-    { "type": "vector", "path": "embedding", "numDimensions": 384, "similarity": "cosine" },
-    { "type": "filter", "path": "repoId" },
-    { "type": "filter", "path": "filePath" }
-  ]
-}
-```
+Server example:
 
-Name the index `chunk_vector_index`.
-
-### 3. Configure environment variables
-
-**server/.env**
-```
+```env
 PORT=5000
-MONGODB_URI=mongodb+srv://...
-GITHUB_TOKEN=ghp_...
-GROQ_API_KEY=gsk_...
+MONGODB_URI=your_mongodb_connection_string
+GITHUB_TOKEN=your_github_token
+GROQ_API_KEY=your_groq_key
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 GROQ_MODEL=llama-3.3-70b-versatile
-HUGGINGFACE_API_KEY=hf_...
+HUGGINGFACE_API_KEY=your_hf_key
 EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 EMBEDDING_DIMENSIONS=384
 CLIENT_URL=http://localhost:3000
 ```
 
-**client/.env.local**
-```
+Client example:
+
+```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
-### 4. Run
+### Run the app
 
 ```bash
 # Terminal 1
@@ -136,43 +111,24 @@ cd server && npm run dev
 cd client && npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open http://localhost:3000
 
-## How the chunker works
+## Project structure
 
-Files are split into semantically meaningful chunks rather than arbitrary line counts:
-
-1. Import block extracted as one chunk
-2. Function / class / component declarations detected via per-language regex patterns
-3. Chunks capped at 150 lines — oversized functions split at blank-line boundaries
-4. Each chunk stores: `filePath`, `language`, `startLine`, `endLine`, `chunkType`, `name`, `tokenEstimate`
-5. Embeddings generated in batches of 32 via HuggingFace API
-
-## Project Structure
-
-```
+```text
 codebase-onboarding-agent/
-├── client/                          # Next.js frontend
-│   ├── app/
-│   │   ├── page.tsx                 # Landing page
-│   │   ├── repo/[owner]/[name]/     # Explorer page
-│   │   └── guide/[shareId]/         # Public guide share page
-│   ├── components/
-│   │   ├── explorer/                # FileTree, CodeViewer, ArchitecturePanel, DependencyGraph
-│   │   ├── chat/                    # ChatPanel, MessageBubble
-│   │   ├── guide/                   # GuideRenderer, WalkthroughStepper
-│   │   └── ui/                      # Skeleton, ErrorBoundary
-│   ├── hooks/useSSE.ts              # SSE streaming hook
-│   ├── lib/                         # dagreLayout, exportPdf
-│   └── types/                       # Shared TypeScript types
-└── server/                          # Express backend
-    └── src/
-        ├── services/                # github, chunker, embeddings, vectorSearch, groq, analysis, graph, walkthrough, guide
-        ├── controllers/             # repo, analysis, chat, graph, guide
-        ├── routes/                  # repo, analysis, chat, graph, guide
-        ├── models/                  # Repo, Chunk, Analysis, Graph, Guide
-        └── prompts/                 # architecture, qa, walkthrough, guide
+├── client/        # Frontend UI
+├── server/        # Backend APIs and AI logic
+└── README.md
 ```
+
+## Interview-ready summary
+
+This project is an AI-powered codebase onboarding platform. It takes a GitHub repository, analyzes its structure, answers developer questions, builds a dependency map, and creates a guided walkthrough. It combines frontend development, backend APIs, databases, AI models, and vector search to solve a real-world problem: helping people understand complex software systems faster.
+
+## Simple non-technical explanation
+
+Think of this as a smart assistant for software projects. If someone joins a new company or opens a large repository, they do not need to read everything manually. This app acts like a guide that explains the project clearly and helps them get started quickly.
 
 ## License
 
