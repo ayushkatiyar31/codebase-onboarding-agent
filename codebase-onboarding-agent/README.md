@@ -8,6 +8,7 @@ When developers join a new project, they usually spend a lot of time reading fil
 
 In interviews, I describe it as:
 
+
 > An AI-powered onboarding assistant for codebases. It fetches a GitHub repository, indexes the source code, explains the architecture, answers questions using the actual code, and generates a shareable guide.
 
 ## Key Features
